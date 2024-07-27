@@ -1,0 +1,9 @@
+flask-sqlalchemy
+flask-migrate
+flask
+flask-wtf
+requests
+pyjwt
+cryptography
+polars
+pyopenssl

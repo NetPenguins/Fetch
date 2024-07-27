@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate Access Token from Refresh Token</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1>Generate Access Token from Refresh Token</h1>
+
+        <form id="generateFromRefreshForm">
+            <div class="form-group">
+                <label for="refreshClientId">Client ID:</label>
+                <input type="text" class="form-control" id="refreshClientId" value="{{ default_client_id }}" required>
+            </div>
+            <div class="form-group">
+                <label for="refreshToken">Refresh Token:</label>
+                <input type="text" class="form-control" id="refreshToken" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Generate Access Token</button>
+        </form>
+
+        <h2 class="mt-4">Saved Refresh Tokens</h2>
+        <select id="savedRefreshTokens" class="form-control mb-3" onchange="useSavedRefreshToken()">
+            <option value="">Select a saved refresh token</option>
+        </select>
+
+        <h2>Insert New Refresh Token</h2>
+        <form id="insertRefreshTokenForm">
+            <div class="form-group">
+                <label for="newRefreshToken">New Refresh Token:</label>
+                <input type="text" class="form-control" id="newRefreshToken" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Insert Refresh Token</button>
+        </form>
+
+        <div id="result" class="mt-4"></div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('generateFromRefreshForm').addEventListener('submit', handleGenerateFromRefresh);
+            document.getElementById('insertRefreshTokenForm').addEventListener('submit', handleInsertRefreshToken);
+            loadRefreshTokens();
+        });
+
+        function handleGenerateFromRefresh(e) {
+            e.preventDefault();
+            const clientId = document.getElementById('refreshClientId').value;
+            const refreshToken = document.getElementById('refreshToken').value;
+            fetch('/generate_from_refresh', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `client_id=${encodeURIComponent(clientId)}&refresh_token=${encodeURIComponent(refreshToken)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    document.getElementById('result').innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+                } else {
+                    document.getElementById('result').innerHTML = `
+                        <div class="alert alert-success">${data.message}</div>
+                        <h3>New Access Token:</h3>
+                        <pre>${data.access_token}</pre>
+                        <h3>New Refresh Token:</h3>
+                        <pre>${data.refresh_token}</pre>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('result').innerHTML = '<div class="alert alert-danger">Failed to generate token from refresh token</div>';
+            });
+        }
+
+        function handleInsertRefreshToken(e) {
+            e.preventDefault();
+            const refreshToken = document.getElementById('newRefreshToken').value;
+            fetch('/insert_refresh_token', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `refresh_token=${encodeURIComponent(refreshToken)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    alert(data.message);
+                    loadRefreshTokens();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to insert refresh token');
+            });
+        }
+
+        function loadRefreshTokens() {
+            fetch('/get_refresh_tokens')
+                .then(response => response.json())
+                .then(data => {
+                    const select = document.getElementById('savedRefreshTokens');
+                    select.innerHTML = '<option value="">Select a saved refresh token</option>';
+                    data.refresh_tokens.forEach(token => {
+                        const option = document.createElement('option');
+                        option.value = token.token;
+                        option.textContent = `Token ID: ${token.id}`;
+                        select.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to load refresh tokens');
+                });
+        }
+
+        function useSavedRefreshToken() {
+            const select = document.getElementById('savedRefreshTokens');
+            document.getElementById('refreshToken').value = select.value;
+        }
+    </script>
+</body>
+</html>
