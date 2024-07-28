@@ -1,168 +1,447 @@
 GRAPH_ENDPOINTS = {
     "Me": {
-        "Me": "/me",
+        "Me": {
+            "path": "/me",
+            "delegatedPermission": "User.Read",
+            "applicationPermission": "User.Read.All"
+        }
     },
     "Organization": {
-        "organization": "/organization",
+        "organization": {
+            "path": "/organization",
+            "delegatedPermission": "Directory.Read.All",
+            "applicationPermission": "Directory.Read.All"
+        }
     },
     "Domains": {
-        "domains": "/domains",
+        "domains": {
+            "path": "/domains",
+            "delegatedPermission": "Directory.Read.All",
+            "applicationPermission": "Directory.Read.All"
+        }
     },
     "Identity": {
-        "apiConnectors": "/identity/apiConnectors",
-        "userFlows": "/identity/userFlows",
+        "apiConnectors": {
+            "path": "/identity/apiConnectors",
+            "delegatedPermission": "APIConnectors.ReadWrite.All",
+            "applicationPermission": "APIConnectors.ReadWrite.All"
+        },
+        "userFlows": {
+            "path": "/identity/userFlows",
+            "delegatedPermission": "IdentityUserFlow.Read.All",
+            "applicationPermission": "IdentityUserFlow.Read.All"
+        },
         "b2cUserFlows": {
-            "b2cUserFlows": "/identity/b2cUserFlows",
+            "b2cUserFlows": {
+                "path": "/identity/b2cUserFlows",
+                "delegatedPermission": "IdentityUserFlow.Read.All",
+                "applicationPermission": "IdentityUserFlow.Read.All"
+            }
         },
-        "userFlowAttributes": "/identity/userFlowAttributes",
+        "userFlowAttributes": {
+            "path": "/identity/userFlowAttributes",
+            "delegatedPermission": "IdentityUserFlow.Read.All",
+            "applicationPermission": "IdentityUserFlow.Read.All"
+        },
         "b2xUserFlows": {
-            "b2xUserFlows": "/identity/b2xUserFlows",
+            "b2xUserFlows": {
+                "path": "/identity/b2xUserFlows",
+                "delegatedPermission": "IdentityUserFlow.Read.All",
+                "applicationPermission": "IdentityUserFlow.Read.All"
+            }
         },
-        "customAuthenticationExtensions": "/identity/customAuthenticationExtensions",
+        "customAuthenticationExtensions": {
+            "path": "/identity/customAuthenticationExtensions",
+            "delegatedPermission": "Application.Read.All",
+            "applicationPermission": "Application.Read.All"
+        },
         "conditionalAccess": {
-            "policies": "/identity/conditionalAccess/policies",
-            "namedLocations": "/identity/conditionalAccess/namedLocations",
+            "policies": {
+                "path": "/identity/conditionalAccess/policies",
+                "delegatedPermission": "Policy.Read.All",
+                "applicationPermission": "Policy.Read.All"
+            },
+            "namedLocations": {
+                "path": "/identity/conditionalAccess/namedLocations",
+                "delegatedPermission": "Policy.Read.All",
+                "applicationPermission": "Policy.Read.All"
+            }
         }
     },
     "IdentityProviders": {
-        "identityProviders": "/identityProviders",
+        "identityProviders": {
+            "path": "/identityProviders",
+            "delegatedPermission": "IdentityProvider.Read.All",
+            "applicationPermission": None
+        }
     },
     "SubscribedSkus": {
-        "subscribedSkus": "/subscribedSkus",
+        "subscribedSkus": {
+            "path": "/subscribedSkus",
+            "delegatedPermission": "Directory.Read.All",
+            "applicationPermission": "Directory.Read.All"
+        }
     },
     "DirectoryRoles": {
-        "directoryRoles": "/directoryRoles",
+        "directoryRoles": {
+            "path": "/directoryRoles",
+            "delegatedPermission": "Directory.Read.All",
+            "applicationPermission": "Directory.Read.All"
+        }
     },
     "Policies": {
-        "identitySecurityDefaultsEnforcementPolicy": "/policies/identitySecurityDefaultsEnforcementPolicy",
-        "authorizationPolicy": "/policies/authorizationPolicy",
-        "featureRolloutPolicies": "/policies/featureRolloutPolicies",
-        "activityBasedTimeoutPolicies": "/policies/activityBasedTimeoutPolicies",
-        "homeRealmDiscoveryPolicies": "/policies/homeRealmDiscoveryPolicies",
-        "claimsMappingPolicies": "/policies/claimsMappingPolicies",
-        "tokenIssuancePolicies": "/policies/tokenIssuancePolicies",
-        "tokenLifetimePolicies": "/policies/tokenLifetimePolicies",
-        "authenticationMethodsPolicy": {
-            "email": "/policies/authenticationMethodsPolicy/authenticationMethodConfigurations/email",
-            "fido2": "/policies/authenticationMethodsPolicy/authenticationMethodConfigurations/fido2",
-            "microsoftAuthenticator": "/policies/authenticationMethodsPolicy/authenticationMethodConfigurations/microsoftAuthenticator",
-            "sms": "/policies/authenticationMethodsPolicy/authenticationMethodConfigurations/sms",
-            "temporaryAccessPass": "/policies/authenticationMethodsPolicy/authenticationMethodConfigurations/temporaryAccessPass",
-            "softwareOath": "/policies/authenticationMethodsPolicy/authenticationMethodConfigurations/softwareOath",
-            "voice": "/policies/authenticationMethodsPolicy/authenticationMethodConfigurations/voice",
-            "x509Certificate": "/policies/authenticationMethodsPolicy/authenticationMethodConfigurations/x509Certificate",
+        "identitySecurityDefaultsEnforcementPolicy": {
+            "path": "/policies/identitySecurityDefaultsEnforcementPolicy",
+            "delegatedPermission": "Policy.Read.All",
+            "applicationPermission": "Policy.Read.All"
         },
-        "adminConsentRequestPolicy": "/policies/adminConsentRequestPolicy",
-        "permissionGrantPolicies": "/policies/permissionGrantPolicies",
-        "externalIdentitiesPolicy": "/policies/externalIdentitiesPolicy",
+        "authorizationPolicy": {
+            "path": "/policies/authorizationPolicy",
+            "delegatedPermission": "Policy.Read.All",
+            "applicationPermission": "Policy.Read.All"
+        },
+        "featureRolloutPolicies": {
+            "path": "/policies/featureRolloutPolicies",
+            "delegatedPermission": "Directory.ReadWrite.All",
+            "applicationPermission": None
+        },
+        "activityBasedTimeoutPolicies": {
+            "path": "/policies/activityBasedTimeoutPolicies",
+            "delegatedPermission": "Policy.Read.All",
+            "applicationPermission": "Policy.Read.All"
+        },
+        "homeRealmDiscoveryPolicies": {
+            "path": "/policies/homeRealmDiscoveryPolicies",
+            "delegatedPermission": "Policy.Read.All",
+            "applicationPermission": "Policy.Read.All"
+        },
+        "claimsMappingPolicies": {
+            "path": "/policies/claimsMappingPolicies",
+            "delegatedPermission": "Policy.Read.All",
+            "applicationPermission": "Policy.Read.All"
+        },
+        "tokenIssuancePolicies": {
+            "path": "/policies/tokenIssuancePolicies",
+            "delegatedPermission": "Policy.Read.All",
+            "applicationPermission": "Policy.Read.All"
+        },
+        "tokenLifetimePolicies": {
+            "path": "/policies/tokenLifetimePolicies",
+            "delegatedPermission": "Policy.Read.All",
+            "applicationPermission": "Policy.Read.All"
+        },
+        "authenticationMethodsPolicy": {
+            "email": {
+                "path": "/policies/authenticationMethodsPolicy/authenticationMethodConfigurations/email",
+                "delegatedPermission": "Policy.Read.All",
+                "applicationPermission": "Policy.Read.All"
+            },
+            "fido2": {
+                "path": "/policies/authenticationMethodsPolicy/authenticationMethodConfigurations/fido2",
+                "delegatedPermission": "Policy.Read.All",
+                "applicationPermission": "Policy.Read.All"
+            },
+            "microsoftAuthenticator": {
+                "path": "/policies/authenticationMethodsPolicy/authenticationMethodConfigurations/microsoftAuthenticator",
+                "delegatedPermission": "Policy.Read.All",
+                "applicationPermission": "Policy.Read.All"
+            },
+            "sms": {
+                "path": "/policies/authenticationMethodsPolicy/authenticationMethodConfigurations/sms",
+                "delegatedPermission": "Policy.Read.All",
+                "applicationPermission": "Policy.Read.All"
+            },
+            "temporaryAccessPass": {
+                "path": "/policies/authenticationMethodsPolicy/authenticationMethodConfigurations/temporaryAccessPass",
+                "delegatedPermission": "Policy.Read.All",
+                "applicationPermission": "Policy.Read.All"
+            },
+            "softwareOath": {
+                "path": "/policies/authenticationMethodsPolicy/authenticationMethodConfigurations/softwareOath",
+                "delegatedPermission": "Policy.Read.All",
+                "applicationPermission": "Policy.Read.All"
+            },
+            "voice": {
+                "path": "/policies/authenticationMethodsPolicy/authenticationMethodConfigurations/voice",
+                "delegatedPermission": "Policy.Read.All",
+                "applicationPermission": "Policy.Read.All"
+            },
+            "x509Certificate": {
+                "path": "/policies/authenticationMethodsPolicy/authenticationMethodConfigurations/x509Certificate",
+                "delegatedPermission": "Policy.Read.All",
+                "applicationPermission": "Policy.Read.All"
+            }
+        },
+        "adminConsentRequestPolicy": {
+            "path": "/policies/adminConsentRequestPolicy",
+            "delegatedPermission": "Policy.Read.All",
+            "applicationPermission": "Policy.Read.All"
+        },
+        "permissionGrantPolicies": {
+            "path": "/policies/permissionGrantPolicies",
+            "delegatedPermission": "Policy.Read.PermissionGrant",
+            "applicationPermission": "Policy.Read.PermissionGrant"
+        },
+        "externalIdentitiesPolicy": {
+            "path": "/policies/externalIdentitiesPolicy",
+            "delegatedPermission": "Policy.Read.All",
+            "applicationPermission": "Policy.Read.All"
+        },
         "crossTenantAccessPolicy": {
-            "crossTenantAccessPolicy": "/policies/crossTenantAccessPolicy",
-            "default": "/policies/crossTenantAccessPolicy/default",
-            "partners": "/policies/crossTenantAccessPolicy/partners",
+            "crossTenantAccessPolicy": {
+                "path": "/policies/crossTenantAccessPolicy",
+                "delegatedPermission": "Policy.Read.All",
+                "applicationPermission": "Policy.Read.All"
+            },
+            "default": {
+                "path": "/policies/crossTenantAccessPolicy/default",
+                "delegatedPermission": "Policy.Read.All",
+                "applicationPermission": "Policy.Read.All"
+            },
+            "partners": {
+                "path": "/policies/crossTenantAccessPolicy/partners",
+                "delegatedPermission": "Policy.Read.All",
+                "applicationPermission": "Policy.Read.All"
+            }
         }
     },
     "IdentityGovernance": {
         "entitlementManagement": {
-            "accessPackages": "/identityGovernance/entitlementManagement/accessPackages",
-            "connectedOrganizations": {
-                "connectedOrganizations": "/identityGovernance/entitlementManagement/connectedOrganizations",
+            "accessPackages": {
+                "path": "/identityGovernance/entitlementManagement/accessPackages",
+                "delegatedPermission": "EntitlementManagement.Read.All",
+                "applicationPermission": "EntitlementManagement.Read.All"
             },
-            "settings": "/identityGovernance/entitlementManagement/settings",
+            "connectedOrganizations": {
+                "connectedOrganizations": {
+                    "path": "/identityGovernance/entitlementManagement/connectedOrganizations",
+                    "delegatedPermission": "EntitlementManagement.Read.All",
+                    "applicationPermission": "EntitlementManagement.Read.All"
+                },
+            },
+            "settings": {
+                "path": "/identityGovernance/entitlementManagement/settings",
+                "delegatedPermission": "EntitlementManagement.Read.All",
+                "applicationPermission": "EntitlementManagement.Read.All"
+            },
         },
         "accessReviews": {
             "definitions": {
-                "definitions": "/identityGovernance/accessReviews/definitions",
+                "definitions": {
+                    "path": "/identityGovernance/accessReviews/definitions",
+                    "delegatedPermission": "AccessReview.Read.All",
+                    "applicationPermission": "AccessReview.Read.All"
+                },
                 "children": {
-                    "instances": {
-                    }
+                    "instances": {}
                 }
             }
         },
         "termsOfUse": {
-            "agreements": "/identityGovernance/termsOfUse/agreements",
+            "agreements": {
+                "path": "/identityGovernance/termsOfUse/agreements",
+                "delegatedPermission": "Agreement.Read.All",
+                "applicationPermission": None
+            },
         }
     },
     "AdministrativeUnits": {
-        "administrativeUnits": "/AdministrativeUnits",
+        "administrativeUnits": {
+            "path": "/AdministrativeUnits",
+            "delegatedPermission": "Directory.Read.All",
+            "applicationPermission": "Directory.Read.All"
+        },
     },
     "PrivilegedAccess": {
         "aadroles": {
             "resources": {
-                "resources": "/privilegedAccess/aadroles/resources",
+                "resources": {
+                    "path": "/privilegedAccess/aadroles/resources",
+                    "delegatedPermission": "PrivilegedAccess.ReadWrite.AzureAD",
+                    "applicationPermission": "PrivilegedAccess.Read.AzureAD"
+                },
             }
         },
         "azureResources": {
             "resources": {
-                "resources": "/privilegedAccess/azureResources/resources",
+                "resources": {
+                    "path": "/privilegedAccess/azureResources/resources",
+                    "delegatedPermission": "PrivilegedAccess.ReadWrite.AzureResources",
+                    "applicationPermission": "PrivilegedAccess.Read.AzureResources"
+                },
             }
         }
     },
     "OnPremisesPublishingProfiles": {
         "provisioning": {
-            "provisioning": "/onPremisesPublishingProfiles/provisioning",
-            "publishedResources": "/onPremisesPublishingProfiles/provisioning/publishedResources",
-            "agentGroups": "/onPremisesPublishingProfiles/provisioning/agentGroups",
-            "agents": "/onPremisesPublishingProfiles/provisioning/agents",
+            "provisioning": {
+                "path": "/onPremisesPublishingProfiles/provisioning",
+                "delegatedPermission": "OnPremisesPublishingProfiles.ReadWrite.All",
+                "applicationPermission": None
+            },
+            "publishedResources": {
+                "path": "/onPremisesPublishingProfiles/provisioning/publishedResources",
+                "delegatedPermission": "OnPremisesPublishingProfiles.ReadWrite.All",
+                "applicationPermission": None
+            },
+            "agentGroups": {
+                "path": "/onPremisesPublishingProfiles/provisioning/agentGroups",
+                "delegatedPermission": "OnPremisesPublishingProfiles.ReadWrite.All",
+                "applicationPermission": None
+            },
+            "agents": {
+                "path": "/onPremisesPublishingProfiles/provisioning/agents",
+                "delegatedPermission": "OnPremisesPublishingProfiles.ReadWrite.All",
+                "applicationPermission": None
+            },
         },
         "applicationProxy": {
-            "connectors": "/onPremisesPublishingProfiles/applicationProxy/connectors",
+            "connectors": {
+                "path": "/onPremisesPublishingProfiles/applicationProxy/connectors",
+                "delegatedPermission": "Directory.ReadWrite.All",
+                "applicationPermission": None
+            },
             "connectorGroups": {
-                "connectorGroups": "/onPremisesPublishingProfiles/applicationProxy/connectorGroups",
+                "connectorGroups": {
+                    "path": "/onPremisesPublishingProfiles/applicationProxy/connectorGroups",
+                    "delegatedPermission": "Directory.ReadWrite.All",
+                    "applicationPermission": None
+                },
             }
         }
     },
     "Groups": {
-        "groups": "/groups",
-        "dynamicGroups": "/groups?$filter=groupTypes/any(s:s eq 'DynamicMembership')"
+        "groups": {
+            "path": "/groups",
+            "delegatedPermission": "Directory.Read.All",
+            "applicationPermission": "Directory.Read.All"
+        },
+        "dynamicGroups": {
+            "path": "/groups?$filter=groupTypes/any(s:s eq 'DynamicMembership')",
+            "delegatedPermission": "Directory.Read.All",
+            "applicationPermission": "Directory.Read.All"
+        }
     },
     "GroupSettings": {
-        "groupSettings": "/groupSettings",
+        "groupSettings": {
+            "path": "/groupSettings",
+            "delegatedPermission": "Directory.Read.All",
+            "applicationPermission": "Directory.Read.All"
+        },
     },
     "Applications": {
-        "applications": "/applications",
+        "applications": {
+            "path": "/applications",
+            "delegatedPermission": "Directory.Read.All",
+            "applicationPermission": "Directory.Read.All"
+        },
     },
     "ServicePrincipals": {
-        "servicePrincipals": "/servicePrincipals",
+        "servicePrincipals": {
+            "path": "/servicePrincipals",
+            "delegatedPermission": "Directory.Read.All",
+            "applicationPermission": "Directory.Read.All"
+        },
     },
     "Users": {
-        "users": "/users",
+        "users": {
+            "path": "/users",
+            "delegatedPermission": "Directory.Read.All",
+            "applicationPermission": "Directory.Read.All"
+        },
     },
     "Devices": {
-        "devices": "/devices",
+        "devices": {
+            "path": "/devices",
+            "delegatedPermission": "Directory.Read.All",
+            "applicationPermission": "Directory.Read.All"
+        },
     },
     "Teamwork": {
-        "teamwork": "/teamwork",
+        "teamwork": {
+            "path": "/teamwork",
+            "delegatedPermission": "Teamwork.Read.All",
+            "applicationPermission": "Teamwork.Read.All"
+        },
     },
     "Admin": {
         "sharepoint": {
-            "settings": "/admin/sharepoint/settings",
+            "settings": {
+                "path": "/admin/sharepoint/settings",
+                "delegatedPermission": "SharePointTenantSettings.Read.All",
+                "applicationPermission": "SharePointTenantSettings.Read.All"
+            },
         }
     },
     "RoleManagement": {
         "directory": {
-            "roleDefinitions": "/roleManagement/directory/roleDefinitions",
-            "roleAssignments": "/roleManagement/directory/roleAssignments",
+            "roleDefinitions": {
+                "path": "/roleManagement/directory/roleDefinitions",
+                "delegatedPermission": "RoleManagement.Read.All",
+                "applicationPermission": "RoleManagement.Read.All"
+            },
+            "roleAssignments": {
+                "path": "/roleManagement/directory/roleAssignments",
+                "delegatedPermission": "RoleManagement.Read.All",
+                "applicationPermission": "RoleManagement.Read.All"
+            },
         },
         "exchange": {
-            "roleDefinitions": "/roleManagement/exchange/roleDefinitions",
-            "roleAssignments": "/roleManagement/exchange/roleAssignments",
+            "roleDefinitions": {
+                "path": "/roleManagement/exchange/roleDefinitions",
+                "delegatedPermission": "RoleManagement.Read.All",
+                "applicationPermission": "RoleManagement.Read.All"
+            },
+            "roleAssignments": {
+                "path": "/roleManagement/exchange/roleAssignments",
+                "delegatedPermission": "RoleManagement.Read.All",
+                "applicationPermission": "RoleManagement.Read.All"
+            },
         },
         "deviceManagement": {
-            "roleDefinitions": "/roleManagement/deviceManagement/roleDefinitions",
-            "roleAssignments": "/roleManagement/deviceManagement/roleAssignments",
+            "roleDefinitions": {
+                "path": "/roleManagement/deviceManagement/roleDefinitions",
+                "delegatedPermission": "RoleManagement.Read.All",
+                "applicationPermission": "RoleManagement.Read.All"
+            },
+            "roleAssignments": {
+                "path": "/roleManagement/deviceManagement/roleAssignments",
+                "delegatedPermission": "RoleManagement.Read.All",
+                "applicationPermission": "RoleManagement.Read.All"
+            },
         },
         "cloudPC": {
-            "roleDefinitions": "/roleManagement/cloudPC/roleDefinitions",
-            "roleAssignments": "/roleManagement/cloudPC/roleAssignments",
+            "roleDefinitions": {
+                "path": "/roleManagement/cloudPC/roleDefinitions",
+                "delegatedPermission": "RoleManagement.Read.All",
+                "applicationPermission": "RoleManagement.Read.All"
+            },
+            "roleAssignments": {
+                "path": "/roleManagement/cloudPC/roleAssignments",
+                "delegatedPermission": "RoleManagement.Read.All",
+                "applicationPermission": "RoleManagement.Read.All"
+            },
         },
         "entitlementManagement": {
-            "roleDefinitions": "/roleManagement/entitlementManagement/roleDefinitions",
-            "roleAssignments": "/roleManagement/entitlementManagement/roleAssignments",
+            "roleDefinitions": {
+                "path": "/roleManagement/entitlementManagement/roleDefinitions",
+                "delegatedPermission": "RoleManagement.Read.All",
+                "applicationPermission": "RoleManagement.Read.All"
+            },
+            "roleAssignments": {
+                "path": "/roleManagement/entitlementManagement/roleAssignments",
+                "delegatedPermission": "RoleManagement.Read.All",
+                "applicationPermission": "RoleManagement.Read.All"
+            },
         }
     },
     "Reports": {
         "authenticationMethods": {
-            "usersRegisteredByFeature": "/reports/authenticationMethods/microsoft.graph.usersRegisteredByFeature()"
+            "usersRegisteredByFeature": {
+                "path": "/reports/authenticationMethods/microsoft.graph.usersRegisteredByFeature()",
+                "delegatedPermission": "AuditLog.Read.All",
+                "applicationPermission": None
+            }
         }
     }
 }

@@ -73,8 +73,8 @@ def enumerate_graph():
         endpoint_data = GRAPH_ENDPOINTS
         for key in endpoint.split('.'):
             endpoint_data = endpoint_data[key]
-        if isinstance(endpoint_data, str):
-            results[endpoint] = fetch_endpoint(endpoint_data)
+        if isinstance(endpoint_data, dict) and 'path' in endpoint_data:
+            results[endpoint] = fetch_endpoint(endpoint_data['path'])
 
     return jsonify(results)
 
@@ -239,5 +239,24 @@ def get_access_token(token_id):
     conn.close()
     if token:
         return jsonify({"success": True, "access_token": token['token']})
+    else:
+        return jsonify({"success": False, "error": "Token not found"}), 404
+
+
+@app.route('/get_token_permissions/<int:token_id>')
+def get_token_permissions(token_id):
+    conn = get_db_connection()
+    token = conn.execute('SELECT token FROM access_tokens WHERE id = ?', (token_id,)).fetchone()
+    conn.close()
+
+    if token:
+        try:
+            decoded_token = jwt.decode(token['token'], options={"verify_signature": False})
+            scp = decoded_token.get('scp', '').split()
+            roles = decoded_token.get('roles', [])
+            permissions = list(set(scp + roles))
+            return jsonify({"success": True, "permissions": permissions})
+        except jwt.DecodeError:
+            return jsonify({"success": False, "error": "Invalid token"}), 400
     else:
         return jsonify({"success": False, "error": "Token not found"}), 404
