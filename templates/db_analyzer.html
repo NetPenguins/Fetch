@@ -22,12 +22,37 @@
   <!-- Action buttons will be dynamically inserted here by JavaScript -->
 </div>
 
+<div id="actionButtons" class="mb-3">
+  <button class="btn btn-secondary me-2 mb-2">Test Button</button>
+</div>
+
 <div id="results" class="mt-4">
   <!-- Results will be displayed here -->
 </div>
 
 {% endblock %}
 
+{% block extra_css %}
+<style>
+    .code-block-container {
+        position: relative;
+        margin-top: 1rem;
+    }
+    .code-block-container pre {
+        background-color: #f4f4f4;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 1rem;
+        margin-top: 0;
+    }
+    .copy-btn {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+    }
+</style>
+{% endblock %}
+
 {% block scripts %}
-  <script src="{{ url_for('static', filename='static/js/db_analyzer.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/db_analyzer.js') }}"></script>
 {% endblock %}
