@@ -260,3 +260,63 @@ def get_token_permissions(token_id):
             return jsonify({"success": False, "error": "Invalid token"}), 400
     else:
         return jsonify({"success": False, "error": "Token not found"}), 404
+
+
+@app.route('/db_analyzer')
+def db_analyzer():
+    conn = get_db_connection()
+    access_tokens = conn.execute('SELECT id, oid, audience FROM access_tokens').fetchall()
+    conn.close()
+    current_time = datetime.utcnow()
+    return render_template('db_analyzer.html',
+                           access_tokens=access_tokens,
+                           current_time=current_time)
+
+
+
+@app.route('/graph_action/<action>/<int:token_id>')
+def graph_action(action, token_id):
+    conn = get_db_connection()
+    token = conn.execute('SELECT token FROM access_tokens WHERE id = ?', (token_id,)).fetchone()
+    conn.close()
+
+    if not token:
+        return jsonify({"error": "Token not found"}), 404
+
+    access_token = token['token']
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+
+    base_url = "https://graph.microsoft.com/v1.0"
+
+    if action == 'get_global_admins':
+        # First, get the Global Administrator role
+        roles_url = f"{base_url}/directoryRoles"
+        response = requests.get(roles_url, headers=headers)
+        roles = response.json().get('value', [])
+        global_admin_role = next((role for role in roles if role.get('displayName') == "Global Administrator"), None)
+
+        if not global_admin_role:
+            return jsonify({"error": "Global Administrator role not found"}), 404
+
+        role_id = global_admin_role['id']
+
+        # Now get the members of the Global Administrator role
+        members_url = f"{base_url}/directoryRoles/{role_id}/members"
+        response = requests.get(members_url, headers=headers)
+
+    elif action == 'get_all_users':
+        response = requests.get(f"{base_url}/users", headers=headers)
+
+    elif action == 'get_all_groups':
+        response = requests.get(f"{base_url}/groups", headers=headers)
+
+    else:
+        return jsonify({"error": "Invalid action"}), 400
+
+    if response.status_code != 200:
+        return jsonify({"error": f"Graph API request failed: {response.text}"}), response.status_code
+
+    return jsonify(response.json())

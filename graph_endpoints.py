@@ -373,6 +373,51 @@ GRAPH_ENDPOINTS = {
             },
         }
     },
+    "Subscriptions": {
+        "subscriptions": {
+            "path": "/subscriptions",
+            "delegatedPermission": "ManagedTenants.Read.All",
+            "applicationPermission": None
+        }
+    },
+    "UserActivities": {
+        "activities": {
+            "path": "/me/activities",
+            "delegatedPermission": "UserActivity.ReadWrite.CreatedByApp",
+            "applicationPermission": None
+        }
+    },
+    "UserDrive": {
+        "drive": {
+            "path": "/me/drive",
+            "delegatedPermission": "Files.Read",
+            "applicationPermission": None
+        }
+    },
+    "UserMail": {
+        "mail": {
+            "path": "/me/messages",
+            "delegatedPermission": "Mail.Read",
+            "applicationPermission": None
+        }
+    },
+    "AuditLogs": {
+        "provisioning": {
+            "path": "/auditLogs/provisioning",
+            "delegatedPermission": "AuditLog.Read.All,Directory.Read.All",
+            "applicationPermission": "AuditLog.Read.All,Directory.Read.All"
+        },
+        "Directory Logs": {
+            "path": "/auditLogs/directoryAudits",
+            "delegatedPermission": "AuditLog.Read.All",
+            "applicationPermission": "AuditLog.Read.All",
+        },
+        "SignIns": {
+            "path": "/auditLogs/signIns",
+            "delegatedPermission": "AuditLog.Read.All",
+            "applicationPermission": "AuditLog.Read.All"
+        },
+    },
     "RoleManagement": {
         "directory": {
             "roleDefinitions": {
@@ -436,12 +481,10 @@ GRAPH_ENDPOINTS = {
         }
     },
     "Reports": {
-        "authenticationMethods": {
-            "usersRegisteredByFeature": {
-                "path": "/reports/authenticationMethods/microsoft.graph.usersRegisteredByFeature()",
-                "delegatedPermission": "AuditLog.Read.All",
-                "applicationPermission": None
-            }
-        }
+        "usersRegisteredByFeature": {
+            "path": "/reports/authenticationMethods/userRegistrationDetails",
+            "delegatedPermission": "AuditLog.Read.All",
+            "applicationPermission": None
+        },
     }
 }

@@ -237,3 +237,31 @@ function getEndpointPermissions(endpoint) {
 
     return [];
 }
+
+
+function getGlobalAdmins() {
+    const tokenId = document.getElementById('tokenSelect').value;
+    if (!tokenId) {
+        alert("Please select an access token first.");
+        return;
+    }
+
+    fetch(`/get_global_admins/${tokenId}`)
+        .then(response => response.json())
+        .then(data => {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<h2>Global Administrators</h2>';
+            if (data.error) {
+                resultsDiv.innerHTML += `<p class="text-danger">Error: ${data.error}</p>`;
+            } else {
+                const adminList = data.global_admins.map(admin =>
+                    `<li>${admin.displayName} (${admin.userPrincipalName})</li>`
+                ).join('');
+                resultsDiv.innerHTML += `<ul>${adminList}</ul>`;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('results').innerHTML = `<p class="text-danger">Error: ${error.message}</p>`;
+        });
+}

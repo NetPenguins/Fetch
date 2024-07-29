@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>DB Analyzer</h1>
+
+<div class="mb-3">
+  <label for="tokenSelect">Select Access Token:</label>
+  <select id="tokenSelect" class="form-select" onchange="checkAndHighlightPermissions(this.value)">
+    <option value="">Choose a token</option>
+    {% for token in access_tokens %}
+      <option value="{{ token.id }}">{{ token.oid }} - {{ token.audience }}</option>
+    {% endfor %}
+  </select>
+</div>
+
+<div id="tokenScp" class="mb-3 mt-2 p-2 border rounded" style="display: none;">
+  <h4>Token Permissions:</h4>
+  <div id="tokenScpContent" style="word-wrap: break-word;"></div>
+</div>
+
+<div id="actionButtons" class="mb-3">
+  <!-- Action buttons will be dynamically inserted here by JavaScript -->
+</div>
+
+<div id="results" class="mt-4">
+  <!-- Results will be displayed here -->
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='static/js/db_analyzer.js') }}"></script>
+{% endblock %}
