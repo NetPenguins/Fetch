@@ -4,6 +4,8 @@ import time
 import requests
 from models import get_db_connection
 from flask import jsonify
+from datetime import datetime, timezone
+
 
 
 def determine_token_type(token):
@@ -170,3 +172,15 @@ def request_token_with_password(username, password, client_id, scope, token_endp
         return jsonify({"success": True, "message": "Tokens acquired and stored successfully"}), 200
     else:
         return jsonify({"error": f"Error: {response.status_code} - {response.text}"}), 400
+
+def aware_utcnow():
+    return datetime.now(timezone.utc)
+
+def aware_utcfromtimestamp(timestamp):
+    return datetime.fromtimestamp(timestamp, timezone.utc)
+
+def naive_utcnow():
+    return aware_utcnow().replace(tzinfo=None)
+
+def naive_utcfromtimestamp(timestamp):
+    return aware_utcfromtimestamp(timestamp).replace(tzinfo=None)

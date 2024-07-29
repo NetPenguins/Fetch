@@ -273,3 +273,52 @@ function loadRefreshTokens() {
             alert('Failed to load refresh tokens: ' + error.message);
         });
 }
+
+function deleteToken(tokenId, tokenType) {
+    if (confirm('Are you sure you want to delete this token?')) {
+        showLoader();
+        fetch(`/delete_token/${tokenId}`, { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                hideLoader();
+                if (data.success) {
+                    // Remove the token row from the table
+                    const row = document.querySelector(`#${tokenType}Token-${tokenId}`);
+                    if (row) {
+                        row.remove();
+                    }
+                    showNotification('Token deleted successfully', 'success');
+                } else {
+                    showNotification('Failed to delete token: ' + data.error, 'error');
+                }
+            })
+            .catch(error => {
+                hideLoader();
+                console.error('Error:', error);
+                showNotification('An error occurred while deleting the token', 'error');
+            });
+    }
+}
+
+function showLoader() {
+    // Implement a loading indicator
+    const loader = document.createElement('div');
+    loader.id = 'loader';
+    loader.innerHTML = 'Deleting...';
+    document.body.appendChild(loader);
+}
+
+function hideLoader() {
+    const loader = document.getElementById('loader');
+    if (loader) {
+        loader.remove();
+    }
+}
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), 3000);
+}

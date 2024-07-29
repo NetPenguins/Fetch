@@ -2,7 +2,7 @@ from flask import render_template, request, jsonify, redirect, url_for
 from app import app
 from models import get_db_connection
 from utils import determine_token_type, insert_token, store_graph_results, generate_new_tokens, \
-    request_token_with_secret, request_token_with_password
+    request_token_with_secret, request_token_with_password,  aware_utcnow, aware_utcfromtimestamp, naive_utcnow, naive_utcfromtimestamp
 from graph_endpoints import GRAPH_ENDPOINTS
 from config import Config
 import requests
@@ -21,7 +21,8 @@ def index():
     refresh_tokens = conn.execute('SELECT * FROM refresh_tokens').fetchall()
     conn.close()
     return render_template('index.html', access_tokens=access_tokens, refresh_tokens=refresh_tokens,
-                           current_time=datetime.utcnow(), datetime=datetime, timedelta=timedelta)
+                           current_time=aware_utcnow(), datetime=datetime, timedelta=timedelta)
+
 
 
 @app.route('/graph_enumerator')
@@ -29,11 +30,12 @@ def graph_enumerator():
     conn = get_db_connection()
     access_tokens = conn.execute('SELECT id, oid, audience FROM access_tokens').fetchall()
     conn.close()
-    current_time = datetime.utcnow()
+    current_time = aware_utcnow()
     return render_template('graph_enumerator.html',
                            access_tokens=access_tokens,
                            graph_endpoints=GRAPH_ENDPOINTS,
                            current_time=current_time)
+
 
 
 @app.route('/enumerate_graph', methods=['POST'])
@@ -174,7 +176,7 @@ def delete_token(token_id):
     if cursor.rowcount > 0:
         return jsonify({"success": True, "message": "Token deleted successfully"}), 200
     else:
-        return jsonify({"error": "Token not found"}), 404
+        return jsonify({"success": False, "error": "Token not found"}), 404
 
 @app.route('/get_refresh_tokens')
 def get_refresh_tokens():
@@ -267,10 +269,12 @@ def db_analyzer():
     conn = get_db_connection()
     access_tokens = conn.execute('SELECT id, oid, audience FROM access_tokens').fetchall()
     conn.close()
-    current_time = datetime.utcnow()
+    current_time = aware_utcnow()
     return render_template('db_analyzer.html',
                            access_tokens=access_tokens,
                            current_time=current_time)
+
+
 
 
 
@@ -291,32 +295,115 @@ def graph_action(action, token_id):
 
     base_url = "https://graph.microsoft.com/v1.0"
 
-    if action == 'get_global_admins':
-        # First, get the Global Administrator role
-        roles_url = f"{base_url}/directoryRoles"
-        response = requests.get(roles_url, headers=headers)
-        roles = response.json().get('value', [])
-        global_admin_role = next((role for role in roles if role.get('displayName') == "Global Administrator"), None)
+    try:
+        if action == 'get_global_admins':
+            # First, get the Global Administrator role
+            roles_url = f"{base_url}/directoryRoles"
+            response = requests.get(roles_url, headers=headers)
+            roles = response.json().get('value', [])
+            global_admin_role = next((role for role in roles if role.get('displayName') == "Global Administrator"), None)
 
-        if not global_admin_role:
-            return jsonify({"error": "Global Administrator role not found"}), 404
+            if not global_admin_role:
+                return jsonify({"error": "Global Administrator role not found"}), 404
 
-        role_id = global_admin_role['id']
+            role_id = global_admin_role['id']
 
-        # Now get the members of the Global Administrator role
-        members_url = f"{base_url}/directoryRoles/{role_id}/members"
-        response = requests.get(members_url, headers=headers)
+            # Now get the members of the Global Administrator role
+            members_url = f"{base_url}/directoryRoles/{role_id}/members"
+            response = requests.get(members_url, headers=headers)
 
-    elif action == 'get_all_users':
-        response = requests.get(f"{base_url}/users", headers=headers)
+        elif action == 'get_custom_roles':
+            roles_url = f"{base_url}/roleManagement/directory/roleDefinitions"
+            response = requests.get(roles_url, headers=headers)
+            if response.status_code == 200:
+                all_roles = response.json().get('value', [])
+                custom_roles = [role for role in all_roles if not role.get('isBuiltIn', True)]
+                return jsonify({"value": custom_roles})
 
-    elif action == 'get_all_groups':
-        response = requests.get(f"{base_url}/groups", headers=headers)
+        elif action == 'get_synced_objects':
+            # Query for users with OnPremisesSecurityIdentifier
+            users_url = f"{base_url}/users?$select=id,displayName,userPrincipalName,onPremisesSecurityIdentifier"
+            users_response = requests.get(users_url, headers=headers)
 
-    else:
-        return jsonify({"error": "Invalid action"}), 400
+            # Query for groups with OnPremisesSecurityIdentifier
+            groups_url = f"{base_url}/groups?$select=id,displayName,mailNickname,onPremisesSecurityIdentifier"
+            groups_response = requests.get(groups_url, headers=headers)
 
-    if response.status_code != 200:
-        return jsonify({"error": f"Graph API request failed: {response.text}"}), response.status_code
+            if users_response.status_code == 200 and groups_response.status_code == 200:
+                all_users = users_response.json().get('value', [])
+                all_groups = groups_response.json().get('value', [])
 
-    return jsonify(response.json())
+                # Filter synced users and groups
+                synced_users = [user for user in all_users if user.get('onPremisesSecurityIdentifier')]
+                synced_groups = [group for group in all_groups if group.get('onPremisesSecurityIdentifier')]
+
+                return jsonify({
+                    "synced_users": synced_users,
+                    "synced_groups": synced_groups
+                })
+            else:
+                return jsonify({
+                    "error": f"Graph API request failed. Users: {users_response.status_code}, Groups: {groups_response.status_code}"
+                }), 400
+
+        elif action == 'get_owned_devices':
+            response = requests.get(f"{base_url}/me/ownedDevices", headers=headers)
+
+        elif action == 'get_owned_objects':
+            response = requests.get(f"{base_url}/me/ownedObjects", headers=headers)
+
+        elif action == 'get_created_objects':
+            response = requests.get(f"{base_url}/me/createdObjects", headers=headers)
+
+        elif action == 'get_m365_groups':
+            response = requests.get(f"{base_url}/groups?$filter=groupTypes/any(c:c+eq+'Unified')", headers=headers)
+
+        elif action == 'get_security_groups':
+            response = requests.get(f"{base_url}/groups?$filter=mailEnabled eq false and securityEnabled eq true", headers=headers)
+
+        elif action == 'get_mail_enabled_security_groups':
+            headers["ConsistencyLevel"] = "eventual"  # Add this header specifically for this request
+            response = requests.get(
+                f"{base_url}/groups?$filter=not(groupTypes/any(c:c eq 'Unified')) and mailEnabled eq true and securityEnabled eq true&$count=true",
+                headers=headers
+            )
+
+        elif action == 'get_distribution_groups':
+            headers["ConsistencyLevel"] = "eventual"  # Add this header specifically for this request
+            response = requests.get(
+                f"{base_url}/groups?$filter=not(groupTypes/any(c:c eq 'Unified')) and mailEnabled eq true and securityEnabled eq false&$count=true",
+                headers=headers
+            )
+
+        else:
+            return jsonify({"error": "Invalid action"}), 400
+
+        if response.status_code != 200:
+            print(f"Error in {action}. Status code: {response.status_code}")
+            print(f"Headers sent: {headers}")
+            print(f"Response: {response.text}")
+            return jsonify({"error": f"Graph API request failed: {response.text}"}), response.status_code
+
+        result = response.json()
+        if '@odata.count' in result:
+            return jsonify({
+                "count": result['@odata.count'],
+                "value": result['value']
+            })
+        else:
+            return jsonify(result)
+
+    except Exception as e:
+        return jsonify({"error": f"An error occurred: {str(e)}"}), 500
+
+@app.route('/current_time')
+def get_current_time():
+    return jsonify({'current_time': aware_utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')})
+
+@app.template_filter('format_datetime')
+def format_datetime(value, format='%Y-%m-%d %H:%M:%S UTC'):
+    if value is None:
+        return ""
+    if isinstance(value, int):
+        value = aware_utcfromtimestamp(value)
+    return value.strftime(format)

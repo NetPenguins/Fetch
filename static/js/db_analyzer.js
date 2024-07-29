@@ -27,6 +27,51 @@ function setupActionButtons() {
             permissions: ['RoleManagement.Read.Directory', 'RoleManagement.ReadWrite.Directory', 'Directory.Read.All', 'Directory.ReadWrite.All'],
             action: getGlobalAdmins
         },
+        {
+            name: 'Get Custom Roles',
+            permissions: ['RoleManagement.Read.Directory', 'RoleManagement.ReadWrite.Directory', 'Directory.Read.All', 'Directory.ReadWrite.All'],
+            action: getCustomRoles
+        },
+        {
+            name: 'Get Synced Objects',
+            permissions: ['User.Read.All', 'Group.Read.All', 'Directory.Read.All'],
+            action: getSyncedObjects
+        },
+                {
+            name: 'Get Owned Devices',
+            permissions: ['User.Read', 'Directory.Read.All', 'Directory.ReadWrite.All', 'User.Read.All', 'User.ReadWrite.All'],
+            action: getOwnedDevices
+        },
+        {
+            name: 'Get Owned Objects',
+            permissions: ['User.Read', 'Directory.Read.All', 'Directory.ReadWrite.All', 'User.Read.All', 'User.ReadWrite.All'],
+            action: getOwnedObjects
+        },
+        {
+            name: 'Get Created Objects',
+            permissions: ['User.Read', 'Directory.Read.All', 'Directory.ReadWrite.All', 'User.Read.All', 'User.ReadWrite', 'User.ReadWrite.All'],
+            action: getCreatedObjects
+        },
+        {
+            name: 'Get Microsoft 365 Groups',
+            permissions: ['GroupMember.Read.All', 'Group.ReadWrite.All', 'Directory.Read.All', 'Directory.ReadWrite.All', 'Group.Read.All'],
+            action: getM365Groups
+        },
+        {
+            name: 'Get Security Groups',
+            permissions: ['GroupMember.Read.All', 'Group.ReadWrite.All', 'Directory.Read.All', 'Directory.ReadWrite.All', 'Group.Read.All'],
+            action: getSecurityGroups
+        },
+        {
+            name: 'Get Mail-Enabled Security Groups',
+            permissions: ['GroupMember.Read.All', 'Group.ReadWrite.All', 'Directory.Read.All', 'Directory.ReadWrite.All', 'Group.Read.All'],
+            action: getMailEnabledSecurityGroups
+        },
+        {
+            name: 'Get Distribution Groups',
+            permissions: ['GroupMember.Read.All', 'Group.ReadWrite.All', 'Directory.Read.All', 'Directory.ReadWrite.All', 'Group.Read.All'],
+            action: getDistributionGroups
+        },
     ];
 
     const buttonContainer = document.getElementById('actionButtons');
@@ -69,18 +114,31 @@ function checkAndHighlightPermissions(tokenId) {
                     .filter(p => p.includes('.AccessAsUser.'))
                     .map(p => p.split('.AccessAsUser.')[0]));
 
+                // Define high-level permissions
+                const highLevelPermissions = new Set([
+                    'Directory.Read.All',
+                    'Directory.ReadWrite.All'
+                ]);
+
                 document.querySelectorAll('#actionButtons button').forEach(button => {
                     const requiredPermissions = JSON.parse(button.dataset.permissions);
                     let hasPermission = false;
                     let potentiallyAllowed = false;
 
-                    for (const perm of requiredPermissions) {
-                        const readPerm = perm.replace('.ReadWrite.', '.Read.');
-                        if (permissions.has(perm) || permissions.has(readPerm)) {
-                            hasPermission = true;
-                            break;
-                        } else if (accessAsUserPermissions.has(perm.split('.')[0])) {
-                            potentiallyAllowed = true;
+                    // Check if the token has any high-level permissions
+                    const hasHighLevelPermission = [...highLevelPermissions].some(p => permissions.has(p));
+
+                    if (hasHighLevelPermission) {
+                        hasPermission = true;
+                    } else {
+                        for (const perm of requiredPermissions) {
+                            const readPerm = perm.replace('.ReadWrite.', '.Read.');
+                            if (permissions.has(perm) || permissions.has(readPerm)) {
+                                hasPermission = true;
+                                break;
+                            } else if (accessAsUserPermissions.has(perm.split('.')[0])) {
+                                potentiallyAllowed = true;
+                            }
                         }
                     }
 
@@ -106,14 +164,44 @@ function checkAndHighlightPermissions(tokenId) {
 }
 
 
+function displayTokenPermissions(permissions) {
+    const tokenScpDiv = document.getElementById('tokenScp');
+    const tokenScpContent = document.getElementById('tokenScpContent');
+    if (tokenScpDiv && tokenScpContent) {
+        tokenScpContent.innerHTML = permissions.map(perm =>
+            `<a href="https://graphpermissions.merill.net/permission/${perm}" target="_blank">${perm}</a>`
+        ).join(' ');
+        tokenScpDiv.style.display = 'block';
+    } else {
+        console.error('Token SCP elements not found');
+    }
+}
+
 function highlightButtons(permissions) {
-    const buttons = document.querySelectorAll('#actionButtons button');
-    buttons.forEach(button => {
-        const requiredPermission = button.dataset.permission;
-        if (hasRequiredPermission(permissions, requiredPermission)) {
+    const permSet = new Set(permissions.map(p => p.replace('.ReadWrite.', '.Read.')));
+    const accessAsUserPermissions = new Set(permissions
+        .filter(p => p.includes('.AccessAsUser.'))
+        .map(p => p.split('.AccessAsUser.')[0]));
+
+    document.querySelectorAll('#actionButtons button').forEach(button => {
+        const requiredPermissions = JSON.parse(button.dataset.permissions);
+        let hasPermission = false;
+        let potentiallyAllowed = false;
+
+        for (const perm of requiredPermissions) {
+            const readPerm = perm.replace('.ReadWrite.', '.Read.');
+            if (permSet.has(perm) || permSet.has(readPerm)) {
+                hasPermission = true;
+                break;
+            } else if (accessAsUserPermissions.has(perm.split('.')[0])) {
+                potentiallyAllowed = true;
+            }
+        }
+
+        if (hasPermission) {
             button.classList.remove('btn-secondary', 'btn-warning');
             button.classList.add('btn-primary');
-        } else if (hasPotentialAccess(permissions, requiredPermission)) {
+        } else if (potentiallyAllowed) {
             button.classList.remove('btn-secondary', 'btn-primary');
             button.classList.add('btn-warning');
         } else {
@@ -123,32 +211,47 @@ function highlightButtons(permissions) {
     });
 }
 
-function hasRequiredPermission(permissions, requiredPermission) {
-    const highLevelPermissions = [
-        'Directory.Read.All',
-        'Directory.ReadWrite.All',
-        'RoleManagement.ReadWrite.Directory'
-    ];
-
-    return permissions.includes(requiredPermission) ||
-           permissions.some(perm => highLevelPermissions.includes(perm));
-}
-
-function hasPotentialAccess(permissions, requiredPermission) {
-    if (permissions.includes('Directory.AccessAsUser.All')) {
-        const basePerm = requiredPermission.split('.')[0];
-        return basePerm === 'Directory' || basePerm === 'RoleManagement';
-    }
-    return false;
-}
-
-function hasAccessAsUserPermission(permissions, requiredPermission) {
-    return permissions.includes('Directory.AccessAsUser.All') &&
-           requiredPermission.startsWith('Directory.');
-}
-
 function getGlobalAdmins() {
     performGraphAction('get_global_admins');
+}
+
+function getSyncedObjects() {
+    performGraphAction('get_synced_objects');
+}
+
+function getOwnedDevices() {
+    performGraphAction('get_owned_devices');
+}
+
+function getOwnedObjects() {
+    performGraphAction('get_owned_objects');
+}
+
+function getCreatedObjects() {
+    performGraphAction('get_created_objects');
+}
+
+function getM365Groups() {
+    performGraphAction('get_m365_groups');
+}
+
+function getSecurityGroups() {
+    performGraphAction('get_security_groups');
+}
+
+function getMailEnabledSecurityGroups() {
+    performGraphAction('get_mail_enabled_security_groups');
+}
+
+function getDistributionGroups() {
+    performGraphAction('get_distribution_groups');
+}
+
+
+
+
+function getCustomRoles() {
+    performGraphAction('get_custom_roles');
 }
 
 function performGraphAction(action) {
