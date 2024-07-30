@@ -23,7 +23,7 @@ function updateCurrentTime() {
 function setupActionButtons() {
     const actionButtons = [
         {
-            name: 'Get Privileged Roles',
+            name: 'Get Users with Privileged Roles',
             permissions: ['RoleManagement.Read.Directory', 'RoleManagement.ReadWrite.Directory', 'Directory.Read.All', 'Directory.ReadWrite.All'],
             action: getPrivilegedRoles
         },

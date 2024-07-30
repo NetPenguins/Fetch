@@ -1,6 +1,6 @@
 GRAPH_ENDPOINTS = {
     "Me": {
-        "Me": {
+        "me": {
             "path": "/me",
             "delegatedPermission": "User.Read",
             "applicationPermission": "User.Read.All"
@@ -32,11 +32,9 @@ GRAPH_ENDPOINTS = {
             "applicationPermission": "IdentityUserFlow.Read.All"
         },
         "b2cUserFlows": {
-            "b2cUserFlows": {
-                "path": "/identity/b2cUserFlows",
-                "delegatedPermission": "IdentityUserFlow.Read.All",
-                "applicationPermission": "IdentityUserFlow.Read.All"
-            }
+            "path": "/identity/b2cUserFlows",
+            "delegatedPermission": "IdentityUserFlow.Read.All",
+            "applicationPermission": "IdentityUserFlow.Read.All"
         },
         "userFlowAttributes": {
             "path": "/identity/userFlowAttributes",
@@ -44,11 +42,9 @@ GRAPH_ENDPOINTS = {
             "applicationPermission": "IdentityUserFlow.Read.All"
         },
         "b2xUserFlows": {
-            "b2xUserFlows": {
-                "path": "/identity/b2xUserFlows",
-                "delegatedPermission": "IdentityUserFlow.Read.All",
-                "applicationPermission": "IdentityUserFlow.Read.All"
-            }
+            "path": "/identity/b2xUserFlows",
+            "delegatedPermission": "IdentityUserFlow.Read.All",
+            "applicationPermission": "IdentityUserFlow.Read.All"
         },
         "customAuthenticationExtensions": {
             "path": "/identity/customAuthenticationExtensions",
@@ -72,7 +68,7 @@ GRAPH_ENDPOINTS = {
         "identityProviders": {
             "path": "/identityProviders",
             "delegatedPermission": "IdentityProvider.Read.All",
-            "applicationPermission": None
+            "applicationPermission": "IdentityProvider.Read.All"
         }
     },
     "SubscribedSkus": {
@@ -103,7 +99,7 @@ GRAPH_ENDPOINTS = {
         "featureRolloutPolicies": {
             "path": "/policies/featureRolloutPolicies",
             "delegatedPermission": "Directory.ReadWrite.All",
-            "applicationPermission": None
+            "applicationPermission": "Directory.ReadWrite.All"
         },
         "activityBasedTimeoutPolicies": {
             "path": "/policies/activityBasedTimeoutPolicies",
@@ -188,126 +184,97 @@ GRAPH_ENDPOINTS = {
             "applicationPermission": "Policy.Read.All"
         },
         "crossTenantAccessPolicy": {
-            "crossTenantAccessPolicy": {
-                "path": "/policies/crossTenantAccessPolicy",
-                "delegatedPermission": "Policy.Read.All",
-                "applicationPermission": "Policy.Read.All"
-            },
-            "default": {
-                "path": "/policies/crossTenantAccessPolicy/default",
-                "delegatedPermission": "Policy.Read.All",
-                "applicationPermission": "Policy.Read.All"
-            },
-            "partners": {
-                "path": "/policies/crossTenantAccessPolicy/partners",
-                "delegatedPermission": "Policy.Read.All",
-                "applicationPermission": "Policy.Read.All"
-            }
+            "path": "/policies/crossTenantAccessPolicy",
+            "delegatedPermission": "Policy.Read.All",
+            "applicationPermission": "Policy.Read.All"
+        },
+        "crossTenantAccessPolicyDefault": {
+            "path": "/policies/crossTenantAccessPolicy/default",
+            "delegatedPermission": "Policy.Read.All",
+            "applicationPermission": "Policy.Read.All"
+        },
+        "crossTenantAccessPolicyPartners": {
+            "path": "/policies/crossTenantAccessPolicy/partners",
+            "delegatedPermission": "Policy.Read.All",
+            "applicationPermission": "Policy.Read.All"
         }
     },
     "IdentityGovernance": {
-        "entitlementManagement": {
-            "accessPackages": {
-                "path": "/identityGovernance/entitlementManagement/accessPackages",
-                "delegatedPermission": "EntitlementManagement.Read.All",
-                "applicationPermission": "EntitlementManagement.Read.All"
-            },
-            "connectedOrganizations": {
-                "connectedOrganizations": {
-                    "path": "/identityGovernance/entitlementManagement/connectedOrganizations",
-                    "delegatedPermission": "EntitlementManagement.Read.All",
-                    "applicationPermission": "EntitlementManagement.Read.All"
-                },
-            },
-            "settings": {
-                "path": "/identityGovernance/entitlementManagement/settings",
-                "delegatedPermission": "EntitlementManagement.Read.All",
-                "applicationPermission": "EntitlementManagement.Read.All"
-            },
+        "entitlementManagementAccessPackages": {
+            "path": "/identityGovernance/entitlementManagement/accessPackages",
+            "delegatedPermission": "EntitlementManagement.Read.All",
+            "applicationPermission": "EntitlementManagement.Read.All"
         },
-        "accessReviews": {
-            "definitions": {
-                "definitions": {
-                    "path": "/identityGovernance/accessReviews/definitions",
-                    "delegatedPermission": "AccessReview.Read.All",
-                    "applicationPermission": "AccessReview.Read.All"
-                },
-                "children": {
-                    "instances": {}
-                }
-            }
+        "entitlementManagementConnectedOrganizations": {
+            "path": "/identityGovernance/entitlementManagement/connectedOrganizations",
+            "delegatedPermission": "EntitlementManagement.Read.All",
+            "applicationPermission": "EntitlementManagement.Read.All"
         },
-        "termsOfUse": {
-            "agreements": {
-                "path": "/identityGovernance/termsOfUse/agreements",
-                "delegatedPermission": "Agreement.Read.All",
-                "applicationPermission": None
-            },
+        "entitlementManagementSettings": {
+            "path": "/identityGovernance/entitlementManagement/settings",
+            "delegatedPermission": "EntitlementManagement.Read.All",
+            "applicationPermission": "EntitlementManagement.Read.All"
+        },
+        "accessReviewsDefinitions": {
+            "path": "/identityGovernance/accessReviews/definitions",
+            "delegatedPermission": "AccessReview.Read.All",
+            "applicationPermission": "AccessReview.Read.All"
+        },
+        "termsOfUseAgreements": {
+            "path": "/identityGovernance/termsOfUse/agreements",
+            "delegatedPermission": "Agreement.Read.All",
+            "applicationPermission": "Agreement.Read.All"
         }
     },
     "AdministrativeUnits": {
         "administrativeUnits": {
-            "path": "/AdministrativeUnits",
+            "path": "/administrativeUnits",
             "delegatedPermission": "Directory.Read.All",
             "applicationPermission": "Directory.Read.All"
-        },
+        }
     },
     "PrivilegedAccess": {
-        "aadroles": {
-            "resources": {
-                "resources": {
-                    "path": "/privilegedAccess/aadroles/resources",
-                    "delegatedPermission": "PrivilegedAccess.ReadWrite.AzureAD",
-                    "applicationPermission": "PrivilegedAccess.Read.AzureAD"
-                },
-            }
+        "aadRolesResources": {
+            "path": "/privilegedAccess/aadRoles/resources",
+            "delegatedPermission": "PrivilegedAccess.ReadWrite.AzureAD",
+            "applicationPermission": "PrivilegedAccess.Read.AzureAD"
         },
-        "azureResources": {
-            "resources": {
-                "resources": {
-                    "path": "/privilegedAccess/azureResources/resources",
-                    "delegatedPermission": "PrivilegedAccess.ReadWrite.AzureResources",
-                    "applicationPermission": "PrivilegedAccess.Read.AzureResources"
-                },
-            }
+        "azureResourcesResources": {
+            "path": "/privilegedAccess/azureResources/resources",
+            "delegatedPermission": "PrivilegedAccess.ReadWrite.AzureResources",
+            "applicationPermission": "PrivilegedAccess.Read.AzureResources"
         }
     },
     "OnPremisesPublishingProfiles": {
-        "provisioning": {
-            "provisioning": {
-                "path": "/onPremisesPublishingProfiles/provisioning",
-                "delegatedPermission": "OnPremisesPublishingProfiles.ReadWrite.All",
-                "applicationPermission": None
-            },
-            "publishedResources": {
-                "path": "/onPremisesPublishingProfiles/provisioning/publishedResources",
-                "delegatedPermission": "OnPremisesPublishingProfiles.ReadWrite.All",
-                "applicationPermission": None
-            },
-            "agentGroups": {
-                "path": "/onPremisesPublishingProfiles/provisioning/agentGroups",
-                "delegatedPermission": "OnPremisesPublishingProfiles.ReadWrite.All",
-                "applicationPermission": None
-            },
-            "agents": {
-                "path": "/onPremisesPublishingProfiles/provisioning/agents",
-                "delegatedPermission": "OnPremisesPublishingProfiles.ReadWrite.All",
-                "applicationPermission": None
-            },
+        "provisioningProfiles": {
+            "path": "/onPremisesPublishingProfiles/provisioning",
+            "delegatedPermission": "OnPremisesPublishingProfiles.ReadWrite.All",
+            "applicationPermission": "OnPremisesPublishingProfiles.ReadWrite.All"
         },
-        "applicationProxy": {
-            "connectors": {
-                "path": "/onPremisesPublishingProfiles/applicationProxy/connectors",
-                "delegatedPermission": "Directory.ReadWrite.All",
-                "applicationPermission": None
-            },
-            "connectorGroups": {
-                "connectorGroups": {
-                    "path": "/onPremisesPublishingProfiles/applicationProxy/connectorGroups",
-                    "delegatedPermission": "Directory.ReadWrite.All",
-                    "applicationPermission": None
-                },
-            }
+        "publishedResources": {
+            "path": "/onPremisesPublishingProfiles/provisioning/publishedResources",
+            "delegatedPermission": "OnPremisesPublishingProfiles.ReadWrite.All",
+            "applicationPermission": "OnPremisesPublishingProfiles.ReadWrite.All"
+        },
+        "agentGroups": {
+            "path": "/onPremisesPublishingProfiles/provisioning/agentGroups",
+            "delegatedPermission": "OnPremisesPublishingProfiles.ReadWrite.All",
+            "applicationPermission": "OnPremisesPublishingProfiles.ReadWrite.All"
+        },
+        "agents": {
+            "path": "/onPremisesPublishingProfiles/provisioning/agents",
+            "delegatedPermission": "OnPremisesPublishingProfiles.ReadWrite.All",
+            "applicationPermission": "OnPremisesPublishingProfiles.ReadWrite.All"
+        },
+        "connectors": {
+            "path": "/onPremisesPublishingProfiles/applicationProxy/connectors",
+            "delegatedPermission": "Directory.ReadWrite.All",
+            "applicationPermission": "Directory.ReadWrite.All"
+        },
+        "connectorGroups": {
+            "path": "/onPremisesPublishingProfiles/applicationProxy/connectorGroups",
+            "delegatedPermission": "Directory.ReadWrite.All",
+            "applicationPermission": "Directory.ReadWrite.All"
         }
     },
     "Groups": {
@@ -327,78 +294,76 @@ GRAPH_ENDPOINTS = {
             "path": "/groupSettings",
             "delegatedPermission": "Directory.Read.All",
             "applicationPermission": "Directory.Read.All"
-        },
+        }
     },
     "Applications": {
         "applications": {
             "path": "/applications",
             "delegatedPermission": "Directory.Read.All",
             "applicationPermission": "Directory.Read.All"
-        },
+        }
     },
     "ServicePrincipals": {
         "servicePrincipals": {
             "path": "/servicePrincipals",
             "delegatedPermission": "Directory.Read.All",
             "applicationPermission": "Directory.Read.All"
-        },
+        }
     },
     "Users": {
         "users": {
             "path": "/users",
             "delegatedPermission": "Directory.Read.All",
             "applicationPermission": "Directory.Read.All"
-        },
+        }
     },
     "Devices": {
         "devices": {
             "path": "/devices",
             "delegatedPermission": "Directory.Read.All",
             "applicationPermission": "Directory.Read.All"
-        },
+        }
     },
     "Teamwork": {
         "teamwork": {
             "path": "/teamwork",
             "delegatedPermission": "Teamwork.Read.All",
             "applicationPermission": "Teamwork.Read.All"
-        },
+        }
     },
     "Admin": {
-        "sharepoint": {
-            "settings": {
-                "path": "/admin/sharepoint/settings",
-                "delegatedPermission": "SharePointTenantSettings.Read.All",
-                "applicationPermission": "SharePointTenantSettings.Read.All"
-            },
+        "sharepointSettings": {
+            "path": "/admin/sharepoint/settings",
+            "delegatedPermission": "SharePointTenantSettings.Read.All",
+            "applicationPermission": "SharePointTenantSettings.Read.All"
         }
     },
     "Subscriptions": {
         "subscriptions": {
             "path": "/subscriptions",
             "delegatedPermission": "ManagedTenants.Read.All",
-            "applicationPermission": None
+            "applicationPermission": "ManagedTenants.Read.All"
         }
     },
     "UserActivities": {
         "activities": {
             "path": "/me/activities",
             "delegatedPermission": "UserActivity.ReadWrite.CreatedByApp",
-            "applicationPermission": None
+            "applicationPermission": "UserActivity.ReadWrite.CreatedByApp"
         }
     },
     "UserDrive": {
         "drive": {
             "path": "/me/drive",
             "delegatedPermission": "Files.Read",
-            "applicationPermission": None
+            "applicationPermission": "Files.Read.All"
         }
     },
     "UserMail": {
         "mail": {
             "path": "/me/messages",
             "delegatedPermission": "Mail.Read",
-            "applicationPermission": None
+            "applicationPermission": "Mail.Read"
         }
     },
     "AuditLogs": {
@@ -407,84 +372,74 @@ GRAPH_ENDPOINTS = {
             "delegatedPermission": "AuditLog.Read.All,Directory.Read.All",
             "applicationPermission": "AuditLog.Read.All,Directory.Read.All"
         },
-        "Directory Logs": {
+        "directoryLogs": {
             "path": "/auditLogs/directoryAudits",
-            "delegatedPermission": "AuditLog.Read.All",
-            "applicationPermission": "AuditLog.Read.All",
-        },
-        "SignIns": {
-            "path": "/auditLogs/signIns",
             "delegatedPermission": "AuditLog.Read.All",
             "applicationPermission": "AuditLog.Read.All"
         },
+        "signIns": {
+            "path": "/auditLogs/signIns",
+            "delegatedPermission": "AuditLog.Read.All",
+            "applicationPermission": "AuditLog.Read.All"
+        }
     },
     "RoleManagement": {
-        "directory": {
-            "roleDefinitions": {
-                "path": "/roleManagement/directory/roleDefinitions",
-                "delegatedPermission": "RoleManagement.Read.All",
-                "applicationPermission": "RoleManagement.Read.All"
-            },
-            "roleAssignments": {
-                "path": "/roleManagement/directory/roleAssignments",
-                "delegatedPermission": "RoleManagement.Read.All",
-                "applicationPermission": "RoleManagement.Read.All"
-            },
+        "directoryRoleDefinitions": {
+            "path": "/roleManagement/directory/roleDefinitions",
+            "delegatedPermission": "RoleManagement.Read.All",
+            "applicationPermission": "RoleManagement.Read.All"
         },
-        "exchange": {
-            "roleDefinitions": {
-                "path": "/roleManagement/exchange/roleDefinitions",
-                "delegatedPermission": "RoleManagement.Read.All",
-                "applicationPermission": "RoleManagement.Read.All"
-            },
-            "roleAssignments": {
-                "path": "/roleManagement/exchange/roleAssignments",
-                "delegatedPermission": "RoleManagement.Read.All",
-                "applicationPermission": "RoleManagement.Read.All"
-            },
+        "directoryRoleAssignments": {
+            "path": "/roleManagement/directory/roleAssignments",
+            "delegatedPermission": "RoleManagement.Read.All",
+            "applicationPermission": "RoleManagement.Read.All"
         },
-        "deviceManagement": {
-            "roleDefinitions": {
-                "path": "/roleManagement/deviceManagement/roleDefinitions",
-                "delegatedPermission": "RoleManagement.Read.All",
-                "applicationPermission": "RoleManagement.Read.All"
-            },
-            "roleAssignments": {
-                "path": "/roleManagement/deviceManagement/roleAssignments",
-                "delegatedPermission": "RoleManagement.Read.All",
-                "applicationPermission": "RoleManagement.Read.All"
-            },
+        "exchangeRoleDefinitions": {
+            "path": "/roleManagement/exchange/roleDefinitions",
+            "delegatedPermission": "RoleManagement.Read.All",
+            "applicationPermission": "RoleManagement.Read.All"
         },
-        "cloudPC": {
-            "roleDefinitions": {
-                "path": "/roleManagement/cloudPC/roleDefinitions",
-                "delegatedPermission": "RoleManagement.Read.All",
-                "applicationPermission": "RoleManagement.Read.All"
-            },
-            "roleAssignments": {
-                "path": "/roleManagement/cloudPC/roleAssignments",
-                "delegatedPermission": "RoleManagement.Read.All",
-                "applicationPermission": "RoleManagement.Read.All"
-            },
+        "exchangeRoleAssignments": {
+            "path": "/roleManagement/exchange/roleAssignments",
+            "delegatedPermission": "RoleManagement.Read.All",
+            "applicationPermission": "RoleManagement.Read.All"
         },
-        "entitlementManagement": {
-            "roleDefinitions": {
-                "path": "/roleManagement/entitlementManagement/roleDefinitions",
-                "delegatedPermission": "RoleManagement.Read.All",
-                "applicationPermission": "RoleManagement.Read.All"
-            },
-            "roleAssignments": {
-                "path": "/roleManagement/entitlementManagement/roleAssignments",
-                "delegatedPermission": "RoleManagement.Read.All",
-                "applicationPermission": "RoleManagement.Read.All"
-            },
+        "deviceManagementRoleDefinitions": {
+            "path": "/roleManagement/deviceManagement/roleDefinitions",
+            "delegatedPermission": "RoleManagement.Read.All",
+            "applicationPermission": "RoleManagement.Read.All"
+        },
+        "deviceManagementRoleAssignments": {
+            "path": "/roleManagement/deviceManagement/roleAssignments",
+            "delegatedPermission": "RoleManagement.Read.All",
+            "applicationPermission": "RoleManagement.Read.All"
+        },
+        "cloudPCRoleDefinitions": {
+            "path": "/roleManagement/cloudPC/roleDefinitions",
+            "delegatedPermission": "RoleManagement.Read.All",
+            "applicationPermission": "RoleManagement.Read.All"
+        },
+        "cloudPCRoleAssignments": {
+            "path": "/roleManagement/cloudPC/roleAssignments",
+            "delegatedPermission": "RoleManagement.Read.All",
+            "applicationPermission": "RoleManagement.Read.All"
+        },
+        "entitlementManagementRoleDefinitions": {
+            "path": "/roleManagement/entitlementManagement/roleDefinitions",
+            "delegatedPermission": "RoleManagement.Read.All",
+            "applicationPermission": "RoleManagement.Read.All"
+        },
+        "entitlementManagementRoleAssignments": {
+            "path": "/roleManagement/entitlementManagement/roleAssignments",
+            "delegatedPermission": "RoleManagement.Read.All",
+            "applicationPermission": "RoleManagement.Read.All"
         }
     },
     "Reports": {
-        "usersRegisteredByFeature": {
+        "userRegistrationDetails": {
             "path": "/reports/authenticationMethods/userRegistrationDetails",
             "delegatedPermission": "AuditLog.Read.All",
-            "applicationPermission": None
-        },
+            "applicationPermission": "AuditLog.Read.All"
+        }
     }
 }

@@ -275,37 +275,100 @@ function enumerateGraph() {
     endpoints.forEach(endpoint => formData.append('endpoints', endpoint));
 
     fetch('/enumerate_graph', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            const resultsDiv = document.getElementById('results');
-            resultsDiv.innerHTML = '<h2>Enumeration Results</h2>';
-            displayResults(data, resultsDiv);
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            document.getElementById('results').innerHTML = `<p class="text-danger">Error: ${error.message}</p>`;
-        });
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        const resultsDiv = document.getElementById('results');
+        resultsDiv.innerHTML = '<h2>Enumeration Results</h2>';
+        displayResults(data, resultsDiv);
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        document.getElementById('results').innerHTML = `<p class="text-danger">Error: ${error.message}</p>`;
+    });
 }
 
 function displayResults(data, container) {
-    const codeBlock = document.createElement('pre');
-    codeBlock.className = 'code-block';
-    codeBlock.style.backgroundColor = '#f4f4f4';
-    codeBlock.style.border = '1px solid #ddd';
-    codeBlock.style.borderRadius = '4px';
-    codeBlock.style.padding = '10px';
-    codeBlock.style.whiteSpace = 'pre-wrap';
-    codeBlock.style.wordWrap = 'break-word';
+    Object.entries(data).forEach(([endpoint, result], index) => {
+        const sectionDiv = document.createElement('div');
+        sectionDiv.className = 'result-section mb-3';
 
-    const jsonString = JSON.stringify(data, null, 2);
-    codeBlock.textContent = jsonString;
+        const headerBar = document.createElement('div');
+        headerBar.className = 'result-header d-flex align-items-center p-2 bg-light border rounded';
 
-    container.appendChild(codeBlock);
+        const toggleIcon = document.createElement('span');
+        toggleIcon.className = 'toggle-icon me-2';
+        toggleIcon.innerHTML = '▶'; // Right-pointing triangle
+
+        const headerText = document.createElement('h3');
+        headerText.className = 'm-0 flex-grow-1 text-truncate';
+        headerText.textContent = endpoint;
+
+        const copyButton = document.createElement('button');
+        copyButton.className = 'btn btn-sm btn-outline-secondary copy-btn ms-2';
+        copyButton.textContent = 'Copy';
+        copyButton.onclick = (e) => {
+            e.stopPropagation();
+            copyToClipboard(`codeBlock${index}`);
+        };
+
+        headerBar.appendChild(toggleIcon);
+        headerBar.appendChild(headerText);
+        headerBar.appendChild(copyButton);
+
+        headerBar.onclick = () => toggleCodeBlock(`codeBlock${index}`);
+
+        const codeBlock = document.createElement('pre');
+        codeBlock.id = `codeBlock${index}`;
+        codeBlock.className = 'code-block mt-2';
+        codeBlock.style.display = 'none';
+
+        let displayData = result.value || result;
+        const jsonString = JSON.stringify(displayData, null, 2);
+        codeBlock.textContent = jsonString;
+
+        sectionDiv.appendChild(headerBar);
+        sectionDiv.appendChild(codeBlock);
+        container.appendChild(sectionDiv);
+    });
 }
 
+function toggleCodeBlock(id) {
+    const codeBlock = document.getElementById(id);
+    const headerBar = codeBlock.previousElementSibling;
+    const toggleIcon = headerBar.querySelector('.toggle-icon');
+
+    if (codeBlock.style.display === 'none') {
+        codeBlock.style.display = 'block';
+        toggleIcon.innerHTML = '▼'; // Down-pointing triangle
+        headerBar.classList.add('active');
+    } else {
+        codeBlock.style.display = 'none';
+        toggleIcon.innerHTML = '▶'; // Right-pointing triangle
+        headerBar.classList.remove('active');
+    }
+}
+
+function copyToClipboard(elementId) {
+    const el = document.getElementById(elementId);
+    let range = document.createRange();
+    range.selectNodeContents(el);
+    let sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    document.execCommand('copy');
+    sel.removeAllRanges();
+
+    // Change button text to indicate copy was successful
+    const copyBtn = el.previousElementSibling.querySelector('.copy-btn');
+    const originalText = copyBtn.textContent;
+    copyBtn.textContent = 'Copied!';
+    setTimeout(() => {
+        copyBtn.textContent = originalText;
+    }, 2000);
+}
 function updateCurrentTime() {
     const currentTimeElement = document.getElementById('currentTime');
     const now = new Date();

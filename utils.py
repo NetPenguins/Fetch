@@ -7,7 +7,6 @@ from flask import jsonify
 from datetime import datetime, timezone
 
 
-
 def determine_token_type(token):
     if token.startswith("eyJ"):
         return 'Access Token'
@@ -173,14 +172,30 @@ def request_token_with_password(username, password, client_id, scope, token_endp
     else:
         return jsonify({"error": f"Error: {response.status_code} - {response.text}"}), 400
 
+
 def aware_utcnow():
     return datetime.now(timezone.utc)
+
 
 def aware_utcfromtimestamp(timestamp):
     return datetime.fromtimestamp(timestamp, timezone.utc)
 
+
 def naive_utcnow():
     return aware_utcnow().replace(tzinfo=None)
 
+
 def naive_utcfromtimestamp(timestamp):
     return aware_utcfromtimestamp(timestamp).replace(tzinfo=None)
+
+
+def get_all_pages(url, headers):
+    all_data = []
+    while url:
+        response = requests.get(url, headers=headers)
+        if response.status_code != 200:
+            raise Exception(f"Error fetching data: {response.status_code}")
+        data = response.json()
+        all_data.extend(data.get('value', []))
+        url = data.get('@odata.nextLink')
+    return all_data
