@@ -310,7 +310,6 @@ def graph_action(action, token_id):
                 "Security Operator", "Security Reader", "User Administrator"
             ]
 
-            # First, get all directory roles
             roles_url = f"{base_url}/directoryRoles"
             all_roles = get_all_pages(roles_url, headers)
 
@@ -321,73 +320,114 @@ def graph_action(action, token_id):
                     role_id = role['id']
                     role_name = role['displayName']
 
-                    # Get the members of the privileged role
                     members_url = f"{base_url}/directoryRoles/{role_id}/members"
                     members = get_all_pages(members_url, headers)
                     privileged_role_members[role_name] = members
 
-                    if not privileged_role_members:
-                        return jsonify({"error": "No privileged roles found or error fetching roles"}), 404
+            if not privileged_role_members:
+                return jsonify({"error": "No privileged roles found or error fetching roles"}), 404
 
-                    return jsonify(privileged_role_members)
+            return jsonify(privileged_role_members)
 
-                elif action == 'get_custom_roles':
-                    roles_url = f"{base_url}/roleManagement/directory/roleDefinitions"
-                    all_roles = get_all_pages(roles_url, headers)
-                    custom_roles = [role for role in all_roles if not role.get('isBuiltIn', True)]
-                    return jsonify({"value": custom_roles})
+        elif action == 'get_custom_roles':
+            roles_url = f"{base_url}/roleManagement/directory/roleDefinitions"
+            all_roles = get_all_pages(roles_url, headers)
+            custom_roles = [role for role in all_roles if not role.get('isBuiltIn', True)]
+            return jsonify({"value": custom_roles})
 
-                elif action == 'get_synced_objects':
-                    users_url = f"{base_url}/users?$select=id,displayName,userPrincipalName,onPremisesSecurityIdentifier"
-                    all_users = get_all_pages(users_url, headers)
+        elif action == 'get_synced_objects':
+            users_url = f"{base_url}/users?$select=id,displayName,userPrincipalName,onPremisesSecurityIdentifier"
+            all_users = get_all_pages(users_url, headers)
 
-                    groups_url = f"{base_url}/groups?$select=id,displayName,mailNickname,onPremisesSecurityIdentifier"
-                    all_groups = get_all_pages(groups_url, headers)
+            groups_url = f"{base_url}/groups?$select=id,displayName,mailNickname,onPremisesSecurityIdentifier"
+            all_groups = get_all_pages(groups_url, headers)
 
-                    synced_users = [user for user in all_users if user.get('onPremisesSecurityIdentifier')]
-                    synced_groups = [group for group in all_groups if group.get('onPremisesSecurityIdentifier')]
+            synced_users = [user for user in all_users if user.get('onPremisesSecurityIdentifier')]
+            synced_groups = [group for group in all_groups if group.get('onPremisesSecurityIdentifier')]
 
-                    return jsonify({
-                        "synced_users": synced_users,
-                        "synced_groups": synced_groups
-                    })
+            return jsonify({
+                "synced_users": synced_users,
+                "synced_groups": synced_groups
+            })
 
-                elif action == 'get_app_role_assignments':
-                    users = get_all_pages(f"{base_url}/users", headers)
-                    groups = get_all_pages(f"{base_url}/groups", headers)
-                    service_principals = get_all_pages(f"{base_url}/servicePrincipals", headers)
+        elif action == 'get_owned_devices':
+            devices_url = f"{base_url}/me/ownedDevices"
+            owned_devices = get_all_pages(devices_url, headers)
+            return jsonify({"value": owned_devices})
 
-                    all_app_role_assignments = []
-                    target_resources = ["Microsoft Graph", "Command"]
+        elif action == 'get_owned_objects':
+            objects_url = f"{base_url}/me/ownedObjects"
+            owned_objects = get_all_pages(objects_url, headers)
+            return jsonify({"value": owned_objects})
 
-                    for user in users:
-                        user_assignments = get_all_pages(f"{base_url}/users/{user['id']}/appRoleAssignments", headers)
-                        all_app_role_assignments.extend(user_assignments)
+        elif action == 'get_created_objects':
+            objects_url = f"{base_url}/me/createdObjects"
+            created_objects = get_all_pages(objects_url, headers)
+            return jsonify({"value": created_objects})
 
-                    for group in groups:
-                        group_assignments = get_all_pages(f"{base_url}/groups/{group['id']}/appRoleAssignments",
-                                                          headers)
-                        all_app_role_assignments.extend(group_assignments)
+        elif action == 'get_m365_groups':
+            groups_url = f"{base_url}/groups?$filter=groupTypes/any(c:c eq 'Unified')"
+            m365_groups = get_all_pages(groups_url, headers)
+            return jsonify({"value": m365_groups})
 
-                    for sp in service_principals:
-                        sp_assignments = get_all_pages(f"{base_url}/servicePrincipals/{sp['id']}/appRoleAssignments",
-                                                       headers)
-                        all_app_role_assignments.extend(sp_assignments)
+        elif action == 'get_security_groups':
+            groups_url = f"{base_url}/groups?$filter=securityEnabled eq true and mailEnabled eq false"
+            security_groups = get_all_pages(groups_url, headers)
+            return jsonify({"value": security_groups})
 
-                    graph_assignments = [
-                        assignment for assignment in all_app_role_assignments
-                        if assignment.get('resourceDisplayName', '').lower() in [r.lower() for r in target_resources]
-                    ]
+        elif action == 'get_mail_enabled_security_groups':
+            groups_url = f"{base_url}/groups?$filter=mailEnabled eq true and securityEnabled eq true"
+            mail_enabled_security_groups = get_all_pages(groups_url, headers)
+            return jsonify({"value": mail_enabled_security_groups})
 
-                    return jsonify({
-                        "all_assignments": all_app_role_assignments,
-                        "graph_assignments": graph_assignments
-                    })
+        elif action == 'get_distribution_groups':
+            groups_url = f"{base_url}/groups?$filter=mailEnabled eq true and securityEnabled eq false"
+            distribution_groups = get_all_pages(groups_url, headers)
+            return jsonify({"value": distribution_groups})
 
-                # ... (handle other actions)
+        elif action == 'get_guest_users':
+            users_url = f"{base_url}/users?$filter=userType eq 'Guest'"
+            guest_users = get_all_pages(users_url, headers)
+            return jsonify({"value": guest_users})
 
-                else:
-                    return jsonify({"error": "Invalid action"}), 400
+        elif action == 'get_app_role_assignments':
+            users = get_all_pages(f"{base_url}/users", headers)
+            groups = get_all_pages(f"{base_url}/groups", headers)
+            service_principals = get_all_pages(f"{base_url}/servicePrincipals", headers)
+
+            all_app_role_assignments = []
+            target_resources = ["Microsoft Graph", "Command"]
+
+            for user in users:
+                user_assignments = get_all_pages(f"{base_url}/users/{user['id']}/appRoleAssignments", headers)
+                all_app_role_assignments.extend(user_assignments)
+
+            for group in groups:
+                group_assignments = get_all_pages(f"{base_url}/groups/{group['id']}/appRoleAssignments", headers)
+                all_app_role_assignments.extend(group_assignments)
+
+            for sp in service_principals:
+                sp_assignments = get_all_pages(f"{base_url}/servicePrincipals/{sp['id']}/appRoleAssignments", headers)
+                all_app_role_assignments.extend(sp_assignments)
+
+            graph_assignments = [
+                assignment for assignment in all_app_role_assignments
+                if assignment.get('resourceDisplayName', '').lower() in [r.lower() for r in target_resources]
+            ]
+
+            return jsonify({
+                "all_assignments": all_app_role_assignments,
+                "graph_assignments": graph_assignments
+            })
+
+        # Add other actions here...
+        elif action == 'get_mail_enabled_security_groups':
+            groups_url = f"{base_url}/groups?$filter=mailEnabled eq true and securityEnabled eq true"
+            mail_enabled_security_groups = get_all_pages(groups_url, headers)
+            return jsonify({"value": mail_enabled_security_groups})
+
+        else:
+            return jsonify({"error": "Invalid action"}), 400
 
     except Exception as e:
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
