@@ -26,8 +26,18 @@ GRAPH_ENDPOINTS = {
             "delegatedPermission": "APIConnectors.ReadWrite.All",
             "applicationPermission": "APIConnectors.ReadWrite.All"
         },
+        "oauth2PermissionGrants": {
+            "path": "/oauth2PermissionGrants",
+            "delegatedPermission": "Directory.ReadWrite.All",
+            "applicationPermission": "DelegatedPermissionGrant.ReadWrite.All"
+        },
         "userFlows": {
             "path": "/identity/userFlows",
+            "delegatedPermission": "IdentityUserFlow.Read.All",
+            "applicationPermission": "IdentityUserFlow.Read.All"
+        },
+        "authenticationEventListeners": {
+            "path": "/identity/authenticationEventListeners",
             "delegatedPermission": "IdentityUserFlow.Read.All",
             "applicationPermission": "IdentityUserFlow.Read.All"
         },
