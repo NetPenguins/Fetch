@@ -11,9 +11,26 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const selectAllBtn = document.getElementById('selectAllBtn');
+    const deselectAllBtn = document.getElementById('deselectAllBtn');
+    const enumerateBtn = document.getElementById('enumerateBtn');
+
+    if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', selectAll);
+    }
+
+    if (deselectAllBtn) {
+        deselectAllBtn.addEventListener('click', deselectAll);
+    }
+
+    if (enumerateBtn) {
+        enumerateBtn.addEventListener('click', enumerateGraph);
+    }
+
     updateCurrentTime();
     setInterval(updateCurrentTime, 1000);
 });
+
 
 function createEndpointsList(endpoints) {
     const endpointsList = document.getElementById('endpointsList');
@@ -23,13 +40,13 @@ function createEndpointsList(endpoints) {
         const categoryWrapper = document.createElement('div');
         categoryWrapper.className = 'category-wrapper';
 
-    const categoryHeader = document.createElement('div');
-    categoryHeader.className = 'category-header';
-    categoryHeader.innerHTML = `
-        <input type="checkbox" class="category-checkbox" id="category-${category}">
-        <span class="category-toggle">+</span> ${category}
-    `;
-    categoryHeader.onclick = toggleCategory;
+        const categoryHeader = document.createElement('div');
+        categoryHeader.className = 'category-header';
+        categoryHeader.innerHTML = `
+            <input type="checkbox" class="category-checkbox" id="category-${category}">
+            <span class="category-toggle">+</span> ${category}
+        `;
+        categoryHeader.onclick = toggleCategory;
 
         const categoryContent = document.createElement('div');
         categoryContent.className = 'category-content';
@@ -42,12 +59,10 @@ function createEndpointsList(endpoints) {
             subcategoryDiv.className = 'subcategory';
 
             if (typeof data === 'object' && data.path) {
-                // This is an endpoint
                 const endpointItem = createEndpointItem(category, subcategory, data);
                 subcategoryDiv.appendChild(endpointItem);
                 endpointCount++;
             } else {
-                // This is a subcategory with nested endpoints
                 subcategoryDiv.innerHTML = `<strong>${subcategory}</strong>`;
                 for (const [endpoint, endpointData] of Object.entries(data)) {
                     if (typeof endpointData === 'object' && endpointData.path) {
@@ -64,8 +79,7 @@ function createEndpointsList(endpoints) {
         const categoryCheckbox = categoryHeader.querySelector('.category-checkbox');
         categoryCheckbox.addEventListener('change', (e) => {
             e.stopPropagation();
-            const checkboxes = categoryContent.querySelectorAll('input[type="checkbox"]');
-            checkboxes.forEach(cb => cb.checked = e.target.checked);
+            toggleCategoryCheckbox(e.target);
         });
 
         categoryWrapper.appendChild(categoryHeader);
@@ -77,14 +91,10 @@ function createEndpointsList(endpoints) {
         endpointCheckboxes.forEach(cb => {
             cb.addEventListener('change', () => updateCategoryCheckbox(category, endpointCount));
         });
-    }
-}
 
-function updateCategoryCheckbox(category, totalEndpoints) {
-    const categoryCheckbox = document.getElementById(`category-${category}`);
-    const checkedEndpoints = document.querySelectorAll(`#category-${category} ~ .category-content input[type="checkbox"]:checked`).length;
-    categoryCheckbox.checked = checkedEndpoints === totalEndpoints;
-    categoryCheckbox.indeterminate = checkedEndpoints > 0 && checkedEndpoints < totalEndpoints;
+        // Initial update of category checkbox
+        updateCategoryCheckbox(category, endpointCount);
+    }
 }
 
 function createEndpointItem(category, endpoint, data) {
@@ -101,7 +111,7 @@ function createEndpointItem(category, endpoint, data) {
 
 function toggleCategory(event) {
     if (event.target.type === 'checkbox') {
-        return; // Don't toggle if checkbox was clicked
+        return; // Don't toggle content if checkbox was clicked
     }
     const content = this.nextElementSibling;
     const toggle = this.querySelector('.category-toggle');
@@ -116,16 +126,44 @@ function toggleCategory(event) {
 
 function toggleCategoryCheckbox(checkbox) {
     const categoryContent = checkbox.closest('.category-header').nextElementSibling;
-    const checks = categoryContent.querySelectorAll('input[type="checkbox"]');
-    checks.forEach(check => check.checked = checkbox.checked);
+    const childCheckboxes = categoryContent.querySelectorAll('input[type="checkbox"]');
+    childCheckboxes.forEach(childCheckbox => {
+        childCheckbox.checked = checkbox.checked;
+    });
+    if (checkbox.checked) {
+        categoryContent.style.display = 'block';
+        checkbox.closest('.category-header').querySelector('.category-toggle').textContent = '−';
+    }
+    updateCategoryCheckbox(checkbox.id.replace('category-', ''), childCheckboxes.length);
+}
+
+function updateCategoryCheckbox(category, totalEndpoints) {
+    const categoryCheckbox = document.getElementById(`category-${category}`);
+    const checkedEndpoints = document.querySelectorAll(`#category-${category} ~ .category-content input[type="checkbox"]:checked`).length;
+    categoryCheckbox.checked = checkedEndpoints === totalEndpoints;
+    categoryCheckbox.indeterminate = checkedEndpoints > 0 && checkedEndpoints < totalEndpoints;
 }
 
 function selectAll() {
-    document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => checkbox.checked = true);
+    document.querySelectorAll('#endpointsList input[type="checkbox"]').forEach(checkbox => {
+        checkbox.checked = true;
+    });
+    updateAllCategoryCheckboxes();
 }
 
 function deselectAll() {
-    document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => checkbox.checked = false);
+    document.querySelectorAll('#endpointsList input[type="checkbox"]').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    updateAllCategoryCheckboxes();
+}
+
+function updateAllCategoryCheckboxes() {
+    document.querySelectorAll('.category-wrapper').forEach(category => {
+        const categoryName = category.querySelector('.category-header').textContent.trim().replace(/^\+\s*/, '');
+        const totalEndpoints = category.querySelectorAll('.category-content input[type="checkbox"]').length;
+        updateCategoryCheckbox(categoryName, totalEndpoints);
+    });
 }
 
 function checkAndHighlightPermissions(tokenId) {
@@ -344,7 +382,7 @@ function toggleCodeBlock(id) {
         codeBlock.style.display = 'block';
         toggleIcon.innerHTML = '▼'; // Down-pointing triangle
         headerBar.classList.add('active');
-    } else {
+} else {
         codeBlock.style.display = 'none';
         toggleIcon.innerHTML = '▶'; // Right-pointing triangle
         headerBar.classList.remove('active');
@@ -369,8 +407,16 @@ function copyToClipboard(elementId) {
         copyBtn.textContent = originalText;
     }, 2000);
 }
+
 function updateCurrentTime() {
     const currentTimeElement = document.getElementById('currentTime');
-    const now = new Date();
-    currentTimeElement.textContent = now.toUTCString();
+    if (currentTimeElement) {
+        const now = new Date();
+        currentTimeElement.textContent = now.toUTCString();
+    }
 }
+
+// Utility function to capitalize the first letter of a string
+String.prototype.capitalize = function() {
+    return this.charAt(0).toUpperCase() + this.slice(1);
+};

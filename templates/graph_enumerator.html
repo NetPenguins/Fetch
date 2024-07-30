@@ -27,9 +27,9 @@
 <div class="mb-4">
     <h4 class="mb-3">Select Endpoints to Enumerate:</h4>
     <div class="mb-3">
-        <button class="btn btn-outline-primary me-2" onclick="selectAll()">Select All</button>
-        <button class="btn btn-outline-secondary me-2" onclick="deselectAll()">Deselect All</button>
-        <button onclick="enumerateGraph()" class="btn btn-primary">Enumerate</button>
+        <button id="selectAllBtn" class="btn btn-secondary me-2">Select All</button>
+        <button id="deselectAllBtn" class="btn btn-secondary me-2">Deselect All</button>
+        <button id="enumerateBtn" class="btn btn-primary">Enumerate</button>
     </div>
     <div id="endpointsList">
         <!-- Endpoints will be dynamically added here by JavaScript -->
