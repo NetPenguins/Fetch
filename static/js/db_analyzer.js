@@ -23,9 +23,9 @@ function updateCurrentTime() {
 function setupActionButtons() {
     const actionButtons = [
         {
-            name: 'Get Global Admins',
+            name: 'Get Privileged Roles',
             permissions: ['RoleManagement.Read.Directory', 'RoleManagement.ReadWrite.Directory', 'Directory.Read.All', 'Directory.ReadWrite.All'],
-            action: getGlobalAdmins
+            action: getPrivilegedRoles
         },
         {
             name: 'Get Custom Roles',
@@ -174,55 +174,8 @@ function checkAndHighlightPermissions(tokenId) {
 }
 
 
-function displayTokenPermissions(permissions) {
-    const tokenScpDiv = document.getElementById('tokenScp');
-    const tokenScpContent = document.getElementById('tokenScpContent');
-    if (tokenScpDiv && tokenScpContent) {
-        tokenScpContent.innerHTML = permissions.map(perm =>
-            `<a href="https://graphpermissions.merill.net/permission/${perm}" target="_blank">${perm}</a>`
-        ).join(' ');
-        tokenScpDiv.style.display = 'block';
-    } else {
-        console.error('Token SCP elements not found');
-    }
-}
-
-function highlightButtons(permissions) {
-    const permSet = new Set(permissions.map(p => p.replace('.ReadWrite.', '.Read.')));
-    const accessAsUserPermissions = new Set(permissions
-        .filter(p => p.includes('.AccessAsUser.'))
-        .map(p => p.split('.AccessAsUser.')[0]));
-
-    document.querySelectorAll('#actionButtons button').forEach(button => {
-        const requiredPermissions = JSON.parse(button.dataset.permissions);
-        let hasPermission = false;
-        let potentiallyAllowed = false;
-
-        for (const perm of requiredPermissions) {
-            const readPerm = perm.replace('.ReadWrite.', '.Read.');
-            if (permSet.has(perm) || permSet.has(readPerm)) {
-                hasPermission = true;
-                break;
-            } else if (accessAsUserPermissions.has(perm.split('.')[0])) {
-                potentiallyAllowed = true;
-            }
-        }
-
-        if (hasPermission) {
-            button.classList.remove('btn-secondary', 'btn-warning');
-            button.classList.add('btn-primary');
-        } else if (potentiallyAllowed) {
-            button.classList.remove('btn-secondary', 'btn-primary');
-            button.classList.add('btn-warning');
-        } else {
-            button.classList.remove('btn-primary', 'btn-warning');
-            button.classList.add('btn-secondary');
-        }
-    });
-}
-
-function getGlobalAdmins() {
-    performGraphAction('get_global_admins');
+function getPrivilegedRoles() {
+    performGraphAction('get_privileged_roles');
 }
 
 function getSyncedObjects() {

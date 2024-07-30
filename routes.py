@@ -295,22 +295,47 @@ def graph_action(action, token_id):
     base_url = "https://graph.microsoft.com/v1.0"
 
     try:
-        if action == 'get_global_admins':
-            # First, get the Global Administrator role
+        if action == 'get_privileged_roles':
+            privileged_roles = [
+                "Global Administrator", "Global Reader", "Application Administrator",
+                "Application Developer", "Authentication Administrator",
+                "Authentication Extensibility Administrator", "B2C IEF Keyset Administrator",
+                "Cloud Application Administrator", "Cloud Device Administrator",
+                "Conditional Access Administrator", "Directory Synchronization Accounts",
+                "Directory Writers", "Domain Name Administrator",
+                "External Identity Provider Administrator", "Helpdesk Administrator",
+                "Hybrid Identity Administrator", "Intune Administrator",
+                "Lifecycle Workflows Administrator", "Partner Tier1 Support",
+                "Partner Tier2 Support", "Password Administrator", "Security Administrator",
+                "Security Operator", "Security Reader", "User Administrator"
+            ]
+
+            # First, get all directory roles
             roles_url = f"{base_url}/directoryRoles"
             response = requests.get(roles_url, headers=headers)
-            roles = response.json().get('value', [])
-            global_admin_role = next((role for role in roles if role.get('displayName') == "Global Administrator"),
-                                     None)
+            all_roles = response.json().get('value', [])
 
-            if not global_admin_role:
-                return jsonify({"error": "Global Administrator role not found"}), 404
+            privileged_role_members = {}
 
-            role_id = global_admin_role['id']
+            for role in all_roles:
+                if role.get('displayName') in privileged_roles:
+                    role_id = role['id']
+                    role_name = role['displayName']
 
-            # Now get the members of the Global Administrator role
-            members_url = f"{base_url}/directoryRoles/{role_id}/members"
-            response = requests.get(members_url, headers=headers)
+                    # Get the members of the privileged role
+                    members_url = f"{base_url}/directoryRoles/{role_id}/members"
+                    members_response = requests.get(members_url, headers=headers)
+
+                    if members_response.status_code == 200:
+                        members = members_response.json().get('value', [])
+                        privileged_role_members[role_name] = members
+                    else:
+                        privileged_role_members[role_name] = f"Error: {members_response.status_code}"
+
+            if not privileged_role_members:
+                return jsonify({"error": "No privileged roles found or error fetching roles"}), 404
+
+            return jsonify(privileged_role_members)
 
         elif action == 'get_custom_roles':
             roles_url = f"{base_url}/roleManagement/directory/roleDefinitions"
