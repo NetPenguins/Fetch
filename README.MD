@@ -46,3 +46,8 @@ cd fetch
 ```
 docker-compose up --build
 ```
+3. Access the application in your web browser at `http://localhost:5000`
+
+## Contributing
+
+Contributions to Fetch are welcome! Please feel free to submit a Pull Request.
