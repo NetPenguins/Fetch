@@ -8,4 +8,5 @@ services:
       - .:/app
     environment:
       - FLASK_ENV=development
-      - DATABASE_URL=sqlite:////app/app.db
+      - DATABASE_URL=sqlite:////app/instance/app.db
+    command: python app.py

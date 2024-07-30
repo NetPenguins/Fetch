@@ -2,7 +2,8 @@ from flask import render_template, request, jsonify, redirect, url_for
 from app import app
 from models import get_db_connection
 from utils import determine_token_type, insert_token, store_graph_results, generate_new_tokens, \
-    request_token_with_secret, request_token_with_password,  aware_utcnow, aware_utcfromtimestamp, naive_utcnow, naive_utcfromtimestamp
+    request_token_with_secret, request_token_with_password, aware_utcnow, aware_utcfromtimestamp, naive_utcnow, \
+    naive_utcfromtimestamp
 from graph_endpoints import GRAPH_ENDPOINTS
 from config import Config
 import requests
@@ -24,7 +25,6 @@ def index():
                            current_time=aware_utcnow(), datetime=datetime, timedelta=timedelta)
 
 
-
 @app.route('/graph_enumerator')
 def graph_enumerator():
     conn = get_db_connection()
@@ -35,7 +35,6 @@ def graph_enumerator():
                            access_tokens=access_tokens,
                            graph_endpoints=GRAPH_ENDPOINTS,
                            current_time=current_time)
-
 
 
 @app.route('/enumerate_graph', methods=['POST'])
@@ -159,6 +158,7 @@ def refresh_token():
             "error": f"Failed to refresh token: {response.text}"
         }), 400
 
+
 @app.route('/delete_token/<int:token_id>', methods=['POST'])
 def delete_token(token_id):
     conn = get_db_connection()
@@ -178,6 +178,7 @@ def delete_token(token_id):
     else:
         return jsonify({"success": False, "error": "Token not found"}), 404
 
+
 @app.route('/get_refresh_tokens')
 def get_refresh_tokens():
     try:
@@ -191,6 +192,7 @@ def get_refresh_tokens():
     except Exception as e:
         print(f"Error in get_refresh_tokens: {str(e)}")  # Log the error
         return jsonify({"success": False, "error": str(e)}), 500
+
 
 @app.route('/request_token_password', methods=['POST'])
 def request_token_password():
@@ -275,9 +277,6 @@ def db_analyzer():
                            current_time=current_time)
 
 
-
-
-
 @app.route('/graph_action/<action>/<int:token_id>')
 def graph_action(action, token_id):
     conn = get_db_connection()
@@ -301,7 +300,8 @@ def graph_action(action, token_id):
             roles_url = f"{base_url}/directoryRoles"
             response = requests.get(roles_url, headers=headers)
             roles = response.json().get('value', [])
-            global_admin_role = next((role for role in roles if role.get('displayName') == "Global Administrator"), None)
+            global_admin_role = next((role for role in roles if role.get('displayName') == "Global Administrator"),
+                                     None)
 
             if not global_admin_role:
                 return jsonify({"error": "Global Administrator role not found"}), 404
@@ -359,7 +359,8 @@ def graph_action(action, token_id):
             response = requests.get(f"{base_url}/groups?$filter=groupTypes/any(c:c+eq+'Unified')", headers=headers)
 
         elif action == 'get_security_groups':
-            response = requests.get(f"{base_url}/groups?$filter=mailEnabled eq false and securityEnabled eq true", headers=headers)
+            response = requests.get(f"{base_url}/groups?$filter=mailEnabled eq false and securityEnabled eq true",
+                                    headers=headers)
 
         elif action == 'get_mail_enabled_security_groups':
             headers["ConsistencyLevel"] = "eventual"  # Add this header specifically for this request
@@ -374,6 +375,46 @@ def graph_action(action, token_id):
                 f"{base_url}/groups?$filter=not(groupTypes/any(c:c eq 'Unified')) and mailEnabled eq true and securityEnabled eq false&$count=true",
                 headers=headers
             )
+
+        elif action == 'get_guest_users':
+            response = requests.get(f"{base_url}/users?$filter=userType eq 'Guest'", headers=headers)
+
+        elif action == 'get_app_role_assignments':
+            # First, get all users, groups, and service principals
+            users_response = requests.get(f"{base_url}/users", headers=headers)
+            groups_response = requests.get(f"{base_url}/groups", headers=headers)
+            sp_response = requests.get(f"{base_url}/servicePrincipals", headers=headers)
+
+            users = users_response.json().get('value', [])
+            groups = groups_response.json().get('value', [])
+            service_principals = sp_response.json().get('value', [])
+
+            all_app_role_assignments = []
+            target_resources = ["Microsoft Graph", "Command"]
+
+            # Get app role assignments for each user, group, and service principal
+            for user in users:
+                user_assignments = requests.get(f"{base_url}/users/{user['id']}/appRoleAssignments", headers=headers).json().get('value', [])
+                all_app_role_assignments.extend(user_assignments)
+
+            for group in groups:
+                group_assignments = requests.get(f"{base_url}/groups/{group['id']}/appRoleAssignments", headers=headers).json().get('value', [])
+                all_app_role_assignments.extend(group_assignments)
+
+            for sp in service_principals:
+                sp_assignments = requests.get(f"{base_url}/servicePrincipals/{sp['id']}/appRoleAssignments", headers=headers).json().get('value', [])
+                all_app_role_assignments.extend(sp_assignments)
+
+            # Filter for Microsoft Graph assignments
+            graph_assignments = [
+                assignment for assignment in all_app_role_assignments
+                if assignment.get('resourceDisplayName', '').lower() in [r.lower() for r in target_resources]
+            ]
+
+            return jsonify({
+                "all_assignments": all_app_role_assignments,
+                "graph_assignments": graph_assignments
+            })
 
         else:
             return jsonify({"error": "Invalid action"}), 400
@@ -396,9 +437,11 @@ def graph_action(action, token_id):
     except Exception as e:
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
+
 @app.route('/current_time')
 def get_current_time():
     return jsonify({'current_time': aware_utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')})
+
 
 @app.template_filter('format_datetime')
 def format_datetime(value, format='%Y-%m-%d %H:%M:%S UTC'):

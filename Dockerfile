@@ -1,4 +1,3 @@
-# Use an official Python runtime as the base image
 FROM python:3.12.3
 
 # Set the working directory in the container
@@ -17,4 +16,4 @@ COPY . .
 EXPOSE 5000
 
 # Run the application
-CMD ["python", "run.py"]
+CMD ["python", "app.py"]

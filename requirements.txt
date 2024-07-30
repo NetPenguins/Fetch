@@ -5,5 +5,4 @@ flask-wtf
 requests
 pyjwt
 cryptography
-polars
 pyopenssl

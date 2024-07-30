@@ -72,6 +72,16 @@ function setupActionButtons() {
             permissions: ['GroupMember.Read.All', 'Group.ReadWrite.All', 'Directory.Read.All', 'Directory.ReadWrite.All', 'Group.Read.All'],
             action: getDistributionGroups
         },
+        {
+            name: 'Get Guest Users',
+            permissions: ['User.Read.All', 'Directory.Read.All'],
+            action: getGuestUsers
+        },
+        {
+            name: 'Get App Role Assignments',
+            permissions: ['Directory.Read.All'],
+            action: getAppRoleAssignments
+        },
     ];
 
     const buttonContainer = document.getElementById('actionButtons');
@@ -245,6 +255,14 @@ function getMailEnabledSecurityGroups() {
 
 function getDistributionGroups() {
     performGraphAction('get_distribution_groups');
+}
+
+function getGuestUsers() {
+    performGraphAction('get_guest_users');
+}
+
+function getAppRoleAssignments() {
+    performGraphAction('get_app_role_assignments');
 }
 
 
