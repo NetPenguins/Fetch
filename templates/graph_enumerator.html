@@ -47,5 +47,9 @@
     // Define GRAPH_ENDPOINTS for use in graph.js
     window.GRAPH_ENDPOINTS = {{ graph_endpoints|tojson|safe }};
 </script>
+
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.css">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.js"></script>
 <script src="{{ url_for('static', filename='js/graph.js') }}"></script>
 {% endblock %}

@@ -31,7 +31,6 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(updateCurrentTime, 1000);
 });
 
-
 function createEndpointsList(endpoints) {
     const endpointsList = document.getElementById('endpointsList');
     endpointsList.innerHTML = '';
@@ -151,9 +150,13 @@ function toggleCategoryCheckbox(checkbox) {
 
 function updateCategoryCheckbox(category, totalEndpoints) {
     const categoryCheckbox = document.getElementById(`category-${category}`);
-    const checkedEndpoints = document.querySelectorAll(`#category-${category} ~ .category-content input[type="checkbox"]:checked`).length;
-    categoryCheckbox.checked = checkedEndpoints === totalEndpoints;
-    categoryCheckbox.indeterminate = checkedEndpoints > 0 && checkedEndpoints < totalEndpoints;
+    if (categoryCheckbox) {
+        const checkedEndpoints = document.querySelectorAll(`#category-${category} ~ .category-content input[type="checkbox"]:checked`).length;
+        categoryCheckbox.checked = checkedEndpoints === totalEndpoints;
+        categoryCheckbox.indeterminate = checkedEndpoints > 0 && checkedEndpoints < totalEndpoints;
+    } else {
+        console.warn(`Checkbox for category ${category} not found`);
+    }
 }
 
 function selectAll() {
@@ -385,6 +388,34 @@ function enumerateGraph() {
 }
 
 function displayResults(data, container) {
+    console.log("Starting displayResults with data:", data);
+
+    function flattenObject(obj, prefix = '') {
+        return Object.keys(obj).reduce((acc, k) => {
+            const pre = prefix.length ? prefix + '.' : '';
+            if (typeof obj[k] === 'object' && obj[k] !== null) {
+                if (Array.isArray(obj[k])) {
+                    acc[pre + k] = JSON.stringify(obj[k]);
+                } else {
+                    Object.assign(acc, flattenObject(obj[k], pre + k));
+                }
+            } else {
+                acc[pre + k] = obj[k];
+            }
+            return acc;
+        }, {});
+    }
+
+    function abbreviateFieldName(name, maxLength = 15) {
+        if (name.length <= maxLength) return name;
+        const parts = name.split(/(?=[A-Z])/);
+        let result = parts[0];
+        for (let i = 1; i < parts.length && result.length < maxLength - 3; i++) {
+            result += parts[i][0];
+        }
+        return result + '...';
+    }
+
     Object.entries(data).forEach(([endpoint, result], index) => {
         const sectionDiv = document.createElement('div');
         sectionDiv.className = 'result-section mb-3';
@@ -394,7 +425,7 @@ function displayResults(data, container) {
 
         const toggleIcon = document.createElement('span');
         toggleIcon.className = 'toggle-icon me-2';
-        toggleIcon.innerHTML = '▶'; // Right-pointing triangle
+        toggleIcon.innerHTML = '▶';
 
         const headerText = document.createElement('h3');
         headerText.className = 'm-0 flex-grow-1 text-truncate';
@@ -403,60 +434,154 @@ function displayResults(data, container) {
         const buttonGroup = document.createElement('div');
         buttonGroup.className = 'btn-group ms-2';
 
-        const downloadCsvButton = document.createElement('button');
-        downloadCsvButton.className = 'btn btn-sm btn-success download-btn';
-        downloadCsvButton.textContent = 'CSV';
-        downloadCsvButton.onclick = (e) => {
-            e.stopPropagation();
-            downloadCSV(endpoint, result);
-            showDownloadStarted(downloadCsvButton, 'CSV');
-        };
+        const csvButton = createButton('CSV', () => downloadCSV(endpoint, result), 'btn-primary');
+        const jsonButton = createButton('JSON', () => downloadJSON(endpoint, result), 'btn-success');
+        const copyButton = createButton('Copy', () => setTimeout(() => copyToClipboard(`dataTable${index}`), 100), 'btn-outline-secondary');
 
-        const downloadJsonButton = document.createElement('button');
-        downloadJsonButton.className = 'btn btn-sm btn-warning download-btn ms-2';
-        downloadJsonButton.textContent = 'JSON';
-        downloadJsonButton.onclick = (e) => {
-            e.stopPropagation();
-            downloadJSON(endpoint, result);
-            showDownloadStarted(downloadJsonButton, 'JSON');
-        };
-
-        const copyButton = document.createElement('button');
-        copyButton.className = 'btn btn-sm btn-primary copy-btn ms-2';
-        copyButton.textContent = 'Copy';
-        copyButton.onclick = (e) => {
-            e.stopPropagation();
-            copyToClipboard(`codeBlock${index}`);
-        };
-
-        buttonGroup.appendChild(downloadCsvButton);
-        buttonGroup.appendChild(downloadJsonButton);
+        buttonGroup.appendChild(csvButton);
+        buttonGroup.appendChild(jsonButton);
         buttonGroup.appendChild(copyButton);
 
         headerBar.appendChild(toggleIcon);
         headerBar.appendChild(headerText);
         headerBar.appendChild(buttonGroup);
 
-        headerBar.onclick = () => toggleCodeBlock(`codeBlock${index}`);
+        const tableContainer = document.createElement('div');
+        tableContainer.id = `dataTable${index}Container`;
+        tableContainer.className = 'mt-2';
+        tableContainer.style.display = 'none';
 
-        const codeBlock = document.createElement('pre');
-        codeBlock.id = `codeBlock${index}`;
-        codeBlock.className = 'code-block mt-2';
-        codeBlock.style.display = 'none';
-
-        let displayData = result.value || result;
-        const jsonString = JSON.stringify(displayData, null, 2);
-        codeBlock.textContent = jsonString;
+        const table = document.createElement('table');
+        table.id = `dataTable${index}`;
+        table.className = 'display';
+        tableContainer.appendChild(table);
 
         sectionDiv.appendChild(headerBar);
-        sectionDiv.appendChild(codeBlock);
+        sectionDiv.appendChild(tableContainer);
         container.appendChild(sectionDiv);
+
+        headerBar.onclick = () => toggleDataTable(`dataTable${index}`);
+
+        let columns = [];
+        let dataSet = [];
+
+        const isDataProperty = (key) => !key.startsWith('@odata') && !key.startsWith('__');
+
+        try {
+            if (result && typeof result === 'object' && 'value' in result) {
+                if (Array.isArray(result.value)) {
+                    dataSet = result.value.map(item => flattenObject(item));
+                } else if (typeof result.value === 'string') {
+                    try {
+                        dataSet = JSON.parse(result.value).map(item => flattenObject(item));
+                    } catch (e) {
+                        console.error("Failed to parse value as JSON", e);
+                        dataSet = [{ value: result.value }];
+                    }
+                } else if (typeof result.value === 'object') {
+                    dataSet = [flattenObject(result.value)];
+                }
+            } else if (Array.isArray(result)) {
+                dataSet = result.map(item => flattenObject(item));
+            } else if (typeof result === 'object' && result !== null) {
+                dataSet = [flattenObject(result)];
+            } else {
+                dataSet = [{ value: result }];
+            }
+
+            if (dataSet.length > 0) {
+                columns = Object.keys(dataSet[0])
+                    .filter(isDataProperty)
+                    .map(key => ({
+                        title: abbreviateFieldName(key),
+                        data: key,
+                        render: function(data, type, row) {
+                            if (type === 'display') {
+                                const stringValue = data != null ? String(data) : '';
+                                if (stringValue.length > 50) {
+                                    return stringValue.substring(0, 47) + '... <a href="#" class="show-more">Show more</a>';
+                                }
+                                return stringValue;
+                            }
+                            return data;
+                        }
+                    }));
+            }
+
+            console.log("Columns:", columns);
+            console.log("DataSet:", dataSet);
+
+            if (columns.length === 0 || dataSet.length === 0) {
+                throw new Error("No valid data structure found");
+            }
+
+            // Initialize DataTable
+            const dataTable = jQuery(`#dataTable${index}`).DataTable({
+                data: dataSet,
+                columns: columns,
+                pageLength: 10,
+                lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "All"]],
+                scrollX: true,
+                autoWidth: false,
+                initComplete: function(settings, json) {
+                    jQuery(`#dataTable${index}`).css('font-size', '14px'); // Changed to 14px
+                }
+            });
+
+            // Add event listener for "Show more" links
+            jQuery(`#dataTable${index}`).on('click', 'a.show-more', function(e) {
+                e.preventDefault();
+                const tr = $(this).closest('tr');
+                const row = dataTable.row(tr);
+                if (row.child.isShown()) {
+                    row.child.hide();
+                    tr.removeClass('shown');
+                } else {
+                    const rowData = row.data();
+                    const fullContent = `<pre>${JSON.stringify(rowData, null, 2)}</pre>`;
+                    row.child(fullContent).show();
+                    tr.addClass('shown');
+                }
+            });
+
+            tableContainer.style.display = 'none';
+            console.log(`DataTable initialized for ${endpoint}`);
+        } catch (error) {
+            console.error(`Error processing endpoint ${endpoint}:`, error);
+            tableContainer.innerHTML = `<p>Error processing data for this endpoint: ${error.message}</p>`;
+            tableContainer.style.display = 'none';
+        }
     });
 }
 
 
+function flattenObject(obj, prefix = '') {
+    return Object.keys(obj).reduce((acc, k) => {
+        const pre = prefix.length ? prefix + '.' : '';
+        if (typeof obj[k] === 'object' && obj[k] !== null && !Array.isArray(obj[k])) {
+            Object.assign(acc, flattenObject(obj[k], pre + k));
+        } else {
+            acc[pre + k] = obj[k];
+        }
+        return acc;
+    }, {});
+}
+
+
+function createButton(text, onClick, colorClass) {
+    const button = document.createElement('button');
+    button.className = `btn btn-sm ${colorClass} me-2`; // Added me-2 for margin
+    button.textContent = text;
+    button.onclick = (e) => {
+        e.stopPropagation(); // Prevent event from bubbling up
+        onClick();
+    };
+    return button;
+}
+
 function downloadJSON(endpoint, data) {
-    const jsonString = JSON.stringify(data, null, 2);
+    const jsonData = data.value ? { value: data.value } : data;
+    const jsonString = JSON.stringify(jsonData, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
     const link = document.createElement('a');
     if (link.download !== undefined) {
@@ -471,26 +596,39 @@ function downloadJSON(endpoint, data) {
 }
 
 function downloadCSV(endpoint, data) {
-    let csv = 'Key,Value\n';
+    let csvContent = '';
+    let flattenedData = [];
 
-    function processObject(obj, prefix = '') {
-        for (const [key, value] of Object.entries(obj)) {
-            if (typeof value === 'object' && value !== null) {
-                processObject(value, prefix + key + '.');
-            } else {
-                csv += `"${prefix}${key}","${value}"\n`;
-            }
-        }
+    if (Array.isArray(data.value)) {
+        flattenedData = data.value.map(item => flattenObject(item));
+    } else if (typeof data === 'object') {
+        flattenedData = [flattenObject(data)];
+    } else {
+        console.error('Unexpected data structure');
+        return;
     }
 
-    processObject(data);
+    const headers = Object.keys(flattenedData[0]).filter(key => !key.startsWith('@odata'));
 
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
+    csvContent += headers.join(",") + "\r\n";
+    flattenedData.forEach(function(row) {
+        let rowContent = headers.map(header => {
+            let cellContent = row[header] || '';
+            if (typeof cellContent === 'object') {
+                cellContent = JSON.stringify(cellContent);
+            }
+            cellContent = cellContent.toString().replace(/"/g, '""');
+            return `"${cellContent}"`;
+        });
+        csvContent += rowContent.join(",") + "\r\n";
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
     if (link.download !== undefined) {
         const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', `${endpoint.replace(/\//g, '_')}_output.csv`);
+        link.setAttribute("href", url);
+        link.setAttribute("download", `${endpoint.replace(/\//g, '_')}.csv`);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
@@ -499,49 +637,39 @@ function downloadCSV(endpoint, data) {
 }
 
 
-function showDownloadStarted(button) {
-    const originalText = button.textContent;
-    button.textContent = 'Downloading...';
-    button.disabled = true;
-    setTimeout(() => {
-        button.textContent = originalText;
-        button.disabled = false;
-    }, 2000);
-}
+function copyToClipboard(tableId) {
+    const table = $(`#${tableId}`).DataTable();
 
-function toggleCodeBlock(id) {
-    const codeBlock = document.getElementById(id);
-    const headerBar = codeBlock.previousElementSibling;
-    const toggleIcon = headerBar.querySelector('.toggle-icon');
+    // Get visible columns
+    const visibleColumns = table.columns().indexes().filter(function(value, index) {
+        return table.column(value).visible();
+    });
 
-    if (codeBlock.style.display === 'none') {
-        codeBlock.style.display = 'block';
-        toggleIcon.innerHTML = '▼'; // Down-pointing triangle
-        headerBar.classList.add('active');
-} else {
-        codeBlock.style.display = 'none';
-        toggleIcon.innerHTML = '▶'; // Right-pointing triangle
-        headerBar.classList.remove('active');
-    }
-}
+    // Create CSV content
+    const csvContent = visibleColumns.map(function(colIndex) {
+        return table.column(colIndex).header().textContent;
+    }).join(',') + '\n' +
+    table.data().toArray().map(function(row) {
+        return visibleColumns.map(function(colIndex) {
+            let cellData = row[table.column(colIndex).dataSrc()];
+            if (typeof cellData === 'string') {
+                cellData = cellData.replace(/"/g, '""');
+                return `"${cellData}"`;
+            }
+            return cellData;
+        }).join(',');
+    }).join('\n');
 
-function copyToClipboard(elementId) {
-    const el = document.getElementById(elementId);
-    let range = document.createRange();
-    range.selectNodeContents(el);
-    let sel = window.getSelection();
-    sel.removeAllRanges();
-    sel.addRange(range);
-    document.execCommand('copy');
-    sel.removeAllRanges();
-
-    // Change button text to indicate copy was successful
-    const copyBtn = el.previousElementSibling.querySelector('.copy-btn');
-    const originalText = copyBtn.textContent;
-    copyBtn.textContent = 'Copied!';
-    setTimeout(() => {
-        copyBtn.textContent = originalText;
-    }, 2000);
+    navigator.clipboard.writeText(csvContent).then(() => {
+        const copyBtn = $(`#${tableId}`).closest('.result-section').find('button:contains("Copy")');
+        const originalText = copyBtn.text();
+        copyBtn.text('Copied!');
+        setTimeout(() => {
+            copyBtn.text(originalText);
+        }, 2000);
+    }).catch(err => {
+        console.error('Failed to copy: ', err);
+    });
 }
 
 function updateCurrentTime() {
@@ -549,6 +677,20 @@ function updateCurrentTime() {
     if (currentTimeElement) {
         const now = new Date();
         currentTimeElement.textContent = now.toUTCString();
+    }
+}
+
+function toggleDataTable(tableId) {
+    const tableContainer = document.getElementById(`${tableId}Container`);
+    const headerBar = tableContainer.previousElementSibling;
+    const toggleIcon = headerBar.querySelector('.toggle-icon');
+
+    if (tableContainer.style.display === 'none') {
+        tableContainer.style.display = 'block';
+        toggleIcon.innerHTML = '▼';
+    } else {
+        tableContainer.style.display = 'none';
+        toggleIcon.innerHTML = '▶';
     }
 }
 

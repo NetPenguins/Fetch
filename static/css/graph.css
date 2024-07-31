@@ -8,10 +8,10 @@
 .category-wrapper {
     break-inside: avoid-column;
     page-break-inside: avoid;
-    margin-bottom: 15px;
+    margin-bottom: 5px; /* Further reduced margin */
     background-color: #f8f9fa;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-radius: 4px; /* Further reduced border radius */
+    box-shadow: 0 1px 1px rgba(0,0,0,0.1); /* Further reduced box shadow */
     overflow: hidden;
 }
 
@@ -60,8 +60,18 @@
     font-size: 0.9rem;
 }
 
-.endpoint-item {
+.endpoint-item .form-check-label {
     margin-bottom: 5px;
+}
+
+.endpoint-item .form-check-label {
+    font-size: 12px; /* Smaller font size */
+    font-weight: normal; /* Remove bold */
+}
+
+.endpoint-item .form-check-input {
+    width: 16px; /* Smaller checkbox size */
+    height: 16px; /* Smaller checkbox size */
 }
 
 .endpoint-item.highlighted {
@@ -83,7 +93,10 @@
 }
 
 #tokenScpContent {
-    font-size: 0.9rem;
+    white-space: normal;
+    word-wrap: break-word;
+    max-height: none;
+    overflow: visible;
 }
 
 #tokenScpContent a {
@@ -238,4 +251,40 @@
 
 .download-btn {
     width: 60px; /* Adjust this value as needed */
+}
+
+body {
+    font-size: 14px;
+}
+
+h1 {
+    font-size: 24px;
+}
+
+h2 {
+    font-size: 20px;
+}
+
+h3 {
+    font-size: 18px;
+}
+
+.btn {
+    font-size: 14px;
+}
+
+.form-control {
+    font-size: 14px;
+}
+
+table.dataTable {
+    font-size: 14px;
+}
+
+.category-header {
+    font-size: 14px;
+}
+
+#tokenScpContent {
+    font-size: 14px;
 }
