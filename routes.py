@@ -25,6 +25,55 @@ def index():
                            current_time=aware_utcnow(), datetime=datetime, timedelta=timedelta)
 
 
+@app.route('/request_token_password', methods=['POST'])
+def request_token_password():
+    client_id = request.form.get('client_id')
+    username = request.form.get('username')
+    password = request.form.get('password')
+    tenant = request.form.get('tenant')
+    scope = request.form.get('scope')
+
+    if not tenant:
+        return jsonify({
+            "success": False,
+            "error": "Tenant ID or Domain is required"
+        }), 400
+
+    # Construct the token endpoint URL
+    token_url = f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token"
+
+    # Prepare the token request
+    token_data = {
+        'grant_type': 'password',
+        'client_id': client_id,
+        'username': username,
+        'password': password,
+        'scope': scope
+    }
+
+    try:
+        response = requests.post(token_url, data=token_data)
+        if response.status_code != 200:
+            error_description = response.json().get('error_description', 'Unknown error')
+            return jsonify({
+                "success": False,
+                "error": f"Token request failed: {response.status_code} - {error_description}"
+            }), 400
+
+        token_response = response.json()
+        return jsonify({
+            "success": True,
+            "access_token": token_response.get('access_token'),
+            "refresh_token": token_response.get('refresh_token')
+        })
+    except requests.exceptions.RequestException as e:
+        return jsonify({
+            "success": False,
+            "error": f"Request failed: {str(e)}"
+        }), 400
+
+
+
 @app.route('/graph_enumerator')
 def graph_enumerator():
     conn = get_db_connection()
@@ -69,11 +118,17 @@ def enumerate_graph():
                 "response_text": e.response.text if e.response else None
             }
 
+    def get_nested_endpoint(data, keys):
+        for key in keys:
+            if key in data:
+                data = data[key]
+            else:
+                return None
+        return data
+
     for endpoint in endpoints:
-        category, sub_endpoint = endpoint.split('.', 1)
-        endpoint_data = GRAPH_ENDPOINTS
-        for key in endpoint.split('.'):
-            endpoint_data = endpoint_data[key]
+        keys = endpoint.split('.')
+        endpoint_data = get_nested_endpoint(GRAPH_ENDPOINTS, keys)
         if isinstance(endpoint_data, dict) and 'path' in endpoint_data:
             results[endpoint] = fetch_endpoint(endpoint_data['path'])
 
@@ -193,14 +248,6 @@ def get_refresh_tokens():
         print(f"Error in get_refresh_tokens: {str(e)}")  # Log the error
         return jsonify({"success": False, "error": str(e)}), 500
 
-
-@app.route('/request_token_password', methods=['POST'])
-def request_token_password():
-    username = request.form['username']
-    password = request.form['password']
-    client_id = request.form['client_id']
-    scope = request.form['scope']
-    return request_token_with_password(username, password, client_id, scope, Config.TOKEN_ENDPOINT)
 
 
 @app.route('/token_details/<int:token_id>')

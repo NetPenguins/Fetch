@@ -54,33 +54,40 @@ function createEndpointsList(endpoints) {
 
         let endpointCount = 0;
 
-        for (const [subcategory, data] of Object.entries(subcategories)) {
-            const subcategoryDiv = document.createElement('div');
-            subcategoryDiv.className = 'subcategory';
+    for (const [subcategory, data] of Object.entries(subcategories)) {
+        const subcategoryDiv = document.createElement('div');
+        subcategoryDiv.className = 'subcategory';
 
-            if (typeof data === 'object' && data.path) {
-                const endpointItem = createEndpointItem(category, subcategory, data);
-                subcategoryDiv.appendChild(endpointItem);
-                endpointCount++;
-            } else {
-                subcategoryDiv.innerHTML = `<strong>${subcategory}</strong>`;
-                for (const [endpoint, endpointData] of Object.entries(data)) {
-                    if (typeof endpointData === 'object' && endpointData.path) {
-                        const endpointItem = createEndpointItem(category, `${subcategory}.${endpoint}`, endpointData);
-                        subcategoryDiv.appendChild(endpointItem);
-                        endpointCount++;
-                    }
+        if (typeof data === 'object' && data.path) {
+            const endpointItem = createEndpointItem(category, subcategory, data);
+            subcategoryDiv.appendChild(endpointItem);
+            endpointCount++;
+        } else {
+            subcategoryDiv.innerHTML = `<strong>${subcategory}</strong>`;
+            for (const [endpoint, endpointData] of Object.entries(data)) {
+                if (typeof endpointData === 'object' && endpointData.path) {
+                    const endpointItem = createEndpointItem(category, `${subcategory}.${endpoint}`, endpointData);
+                    subcategoryDiv.appendChild(endpointItem);
+                    endpointCount++;
                 }
             }
-
-            categoryContent.appendChild(subcategoryDiv);
         }
+
+        categoryContent.appendChild(subcategoryDiv);
+    }
+
 
         const categoryCheckbox = categoryHeader.querySelector('.category-checkbox');
         categoryCheckbox.addEventListener('change', (e) => {
             e.stopPropagation();
             toggleCategoryCheckbox(e.target);
         });
+
+        const oldCategoryCheckbox = document.getElementById(`category-${category}`);
+        if (oldCategoryCheckbox) {
+            categoryCheckbox.checked = oldCategoryCheckbox.checked;
+            categoryCheckbox.indeterminate = oldCategoryCheckbox.indeterminate;
+        }
 
         categoryWrapper.appendChild(categoryHeader);
         categoryWrapper.appendChild(categoryContent);
@@ -89,8 +96,12 @@ function createEndpointsList(endpoints) {
         // Add event listeners to update category checkbox
         const endpointCheckboxes = categoryContent.querySelectorAll('input[type="checkbox"]');
         endpointCheckboxes.forEach(cb => {
-            cb.addEventListener('change', () => updateCategoryCheckbox(category, endpointCount));
+            cb.addEventListener('change', () => {
+                updateCategoryCheckbox(category, endpointCount);
+            });
         });
+
+
 
         // Initial update of category checkbox
         updateCategoryCheckbox(category, endpointCount);
@@ -134,7 +145,8 @@ function toggleCategoryCheckbox(checkbox) {
         categoryContent.style.display = 'block';
         checkbox.closest('.category-header').querySelector('.category-toggle').textContent = '−';
     }
-    updateCategoryCheckbox(checkbox.id.replace('category-', ''), childCheckboxes.length);
+    const category = checkbox.id.replace('category-', '');
+    updateCategoryCheckbox(category, childCheckboxes.length);
 }
 
 function updateCategoryCheckbox(category, totalEndpoints) {
@@ -197,10 +209,18 @@ function checkAndHighlightPermissions(tokenId) {
                     const endpointCheckboxes = category.querySelectorAll('input[name="endpoints"]');
 
                     endpointCheckboxes.forEach(checkbox => {
-                        const endpointPath = checkbox.value.split('.').slice(1).join('.');
-                        const endpointData = window.GRAPH_ENDPOINTS[categoryName][endpointPath];
+                        const endpointPath = checkbox.value.split('.');
+                        let endpointData = window.GRAPH_ENDPOINTS;
+                        for (const key of endpointPath) {
+                            if (endpointData && endpointData[key]) {
+                                endpointData = endpointData[key];
+                            } else {
+                                endpointData = null;
+                                break;
+                            }
+                        }
 
-                        if (endpointData) {
+                        if (endpointData && endpointData.path) {
                             const delegatedPerm = endpointData.delegatedPermission ? endpointData.delegatedPermission.replace('.ReadWrite.', '.Read.') : null;
                             const appPerm = endpointData.applicationPermission ? endpointData.applicationPermission.replace('.ReadWrite.', '.Read.') : null;
 
@@ -226,6 +246,7 @@ function checkAndHighlightPermissions(tokenId) {
             document.getElementById('tokenScp').style.display = 'none';
         });
 }
+
 
 function organizeEndpoints(endpointStatus) {
     const endpointsList = document.getElementById('endpointsList');
@@ -262,6 +283,9 @@ function organizeEndpoints(endpointStatus) {
         return order[a[1].status] - order[b[1].status];
     });
 
+    // Store current scroll position
+    const scrollPosition = endpointsList.scrollTop;
+
     // Clear existing content
     endpointsList.innerHTML = '';
 
@@ -290,16 +314,48 @@ function organizeEndpoints(endpointStatus) {
         categoryContent.className = 'category-content';
         categoryContent.style.display = 'none';
 
+        const categoryCheckbox = categoryHeader.querySelector('.category-checkbox');
+        categoryCheckbox.addEventListener('change', (e) => {
+            e.stopPropagation();
+            toggleCategoryCheckbox(e.target);
+        });
+
+        // Preserve checked state of category
+        const oldCategoryCheckbox = document.getElementById(`category-${category}`);
+        if (oldCategoryCheckbox) {
+            categoryCheckbox.checked = oldCategoryCheckbox.checked;
+            categoryCheckbox.indeterminate = oldCategoryCheckbox.indeterminate;
+        }
+
         // Append endpoints in order: allowed, potentially allowed, not allowed
         endpoints.allowed.concat(endpoints.potentiallyAllowed, endpoints.notAllowed)
-            .forEach(endpoint => categoryContent.appendChild(endpoint));
+            .forEach(endpoint => {
+                categoryContent.appendChild(endpoint);
+
+                // Preserve checked state of endpoint
+                const checkbox = endpoint.querySelector('input[type="checkbox"]');
+                const oldCheckbox = document.getElementById(checkbox.id);
+                if (oldCheckbox) {
+                    checkbox.checked = oldCheckbox.checked;
+                }
+
+                // Add event listener to update category checkbox when endpoint is checked/unchecked
+                checkbox.addEventListener('change', () => {
+                    updateCategoryCheckbox(category, endpoints.allowed.length + endpoints.potentiallyAllowed.length + endpoints.notAllowed.length);
+                });
+            });
 
         categoryWrapper.appendChild(categoryHeader);
         categoryWrapper.appendChild(categoryContent);
         endpointsList.appendChild(categoryWrapper);
-    });
-}
 
+        // Update category checkbox state based on its endpoints
+        updateCategoryCheckbox(category, endpoints.allowed.length + endpoints.potentiallyAllowed.length + endpoints.notAllowed.length);
+    });
+
+    // Restore scroll position
+    endpointsList.scrollTop = scrollPosition;
+}
 function enumerateGraph() {
     const tokenId = document.getElementById('tokenSelect').value;
     if (!tokenId) {

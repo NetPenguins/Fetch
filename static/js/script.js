@@ -14,6 +14,7 @@ function initializeEventListeners() {
     document.getElementById('generateFromRefreshForm')?.addEventListener('submit', handleGenerateFromRefresh);
     document.getElementById('insertRefreshTokenForm')?.addEventListener('submit', handleInsertRefreshToken);
     document.getElementById('authenticateForm')?.addEventListener('submit', handleAuthenticate);
+    document.getElementById('requestTokenPasswordForm')?.addEventListener('submit', handleRequestTokenPassword);
 }
 
 function showSection(sectionId) {
@@ -53,6 +54,57 @@ function copyToken(tokenId) {
             alert('An error occurred while fetching the token');
         });
 }
+
+function handleRequestTokenPassword(e) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const tenant = formData.get('tenant');
+
+    if (!tenant) {
+        alert('Tenant ID or Domain is required');
+        return;
+    }
+
+    // Construct the token endpoint URL
+    const tokenUrl = tenant.includes('.')
+        ? `https://login.microsoftonline.com/${tenant}/oauth2/token`
+        : `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`;
+
+    // Prepare the request body
+    const body = new URLSearchParams({
+        client_id: formData.get('client_id'),
+        grant_type: 'password',
+        username: formData.get('username'),
+        password: formData.get('password'),
+        scope: formData.get('scope'),
+        tenant: tenant  // Include tenant in the body
+    });
+
+    fetch('/request_token_password', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: body
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Token generated successfully!');
+            document.getElementById('passwordTokenResult').innerHTML =
+                `Access Token: ${data.access_token}<br>Refresh Token: ${data.refresh_token || 'Not provided'}`;
+        } else {
+            alert('Failed to generate token: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while requesting the token');
+    });
+}
+
+
+
 
 function showTokenDetails(tokenId) {
     fetch(`/token_details/${tokenId}`)
