@@ -400,17 +400,42 @@ function displayResults(data, container) {
         headerText.className = 'm-0 flex-grow-1 text-truncate';
         headerText.textContent = endpoint;
 
+        const buttonGroup = document.createElement('div');
+        buttonGroup.className = 'btn-group ms-2';
+
+        const downloadCsvButton = document.createElement('button');
+        downloadCsvButton.className = 'btn btn-sm btn-success download-btn';
+        downloadCsvButton.textContent = 'CSV';
+        downloadCsvButton.onclick = (e) => {
+            e.stopPropagation();
+            downloadCSV(endpoint, result);
+            showDownloadStarted(downloadCsvButton, 'CSV');
+        };
+
+        const downloadJsonButton = document.createElement('button');
+        downloadJsonButton.className = 'btn btn-sm btn-warning download-btn ms-2';
+        downloadJsonButton.textContent = 'JSON';
+        downloadJsonButton.onclick = (e) => {
+            e.stopPropagation();
+            downloadJSON(endpoint, result);
+            showDownloadStarted(downloadJsonButton, 'JSON');
+        };
+
         const copyButton = document.createElement('button');
-        copyButton.className = 'btn btn-sm btn-outline-secondary copy-btn ms-2';
+        copyButton.className = 'btn btn-sm btn-primary copy-btn ms-2';
         copyButton.textContent = 'Copy';
         copyButton.onclick = (e) => {
             e.stopPropagation();
             copyToClipboard(`codeBlock${index}`);
         };
 
+        buttonGroup.appendChild(downloadCsvButton);
+        buttonGroup.appendChild(downloadJsonButton);
+        buttonGroup.appendChild(copyButton);
+
         headerBar.appendChild(toggleIcon);
         headerBar.appendChild(headerText);
-        headerBar.appendChild(copyButton);
+        headerBar.appendChild(buttonGroup);
 
         headerBar.onclick = () => toggleCodeBlock(`codeBlock${index}`);
 
@@ -427,6 +452,61 @@ function displayResults(data, container) {
         sectionDiv.appendChild(codeBlock);
         container.appendChild(sectionDiv);
     });
+}
+
+
+function downloadJSON(endpoint, data) {
+    const jsonString = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const link = document.createElement('a');
+    if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `${endpoint.replace(/\//g, '_')}_output.json`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+}
+
+function downloadCSV(endpoint, data) {
+    let csv = 'Key,Value\n';
+
+    function processObject(obj, prefix = '') {
+        for (const [key, value] of Object.entries(obj)) {
+            if (typeof value === 'object' && value !== null) {
+                processObject(value, prefix + key + '.');
+            } else {
+                csv += `"${prefix}${key}","${value}"\n`;
+            }
+        }
+    }
+
+    processObject(data);
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `${endpoint.replace(/\//g, '_')}_output.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+}
+
+
+function showDownloadStarted(button) {
+    const originalText = button.textContent;
+    button.textContent = 'Downloading...';
+    button.disabled = true;
+    setTimeout(() => {
+        button.textContent = originalText;
+        button.disabled = false;
+    }, 2000);
 }
 
 function toggleCodeBlock(id) {
