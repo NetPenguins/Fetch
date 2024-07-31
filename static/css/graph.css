@@ -208,6 +208,7 @@
 
 .copy-btn {
     font-size: 0.8rem;
+    width: 60px;
     padding: 0.25rem 0.5rem;
     color: #495057;
     border-color: #ced4da;
@@ -233,4 +234,8 @@
     border: 1px solid #e9ecef;
     border-radius: 0.25rem;
     padding: 1rem;
+}
+
+.download-btn {
+    width: 60px; /* Adjust this value as needed */
 }
