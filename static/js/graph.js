@@ -107,7 +107,7 @@ function createEndpointsList(endpoints) {
     }
 }
 
-function createEndpointItem(category, endpoint, data) {
+function createEndpointItem(category, endpoint) {
     const endpointItem = document.createElement('div');
     endpointItem.className = 'endpoint-item form-check';
     endpointItem.innerHTML = `
@@ -449,7 +449,7 @@ function displayResults(data, container) {
         const tableContainer = document.createElement('div');
         tableContainer.id = `dataTable${index}Container`;
         tableContainer.className = 'mt-2';
-        tableContainer.style.display = 'none';
+        tableContainer.style.display = 'none'; // Ensure table is initially closed
 
         const table = document.createElement('table');
         table.id = `dataTable${index}`;
@@ -495,7 +495,7 @@ function displayResults(data, container) {
                     .map(key => ({
                         title: abbreviateFieldName(key),
                         data: key,
-                        render: function(data, type, row) {
+                        render: function(data, type) {
                             if (type === 'display') {
                                 const stringValue = data != null ? String(data) : '';
                                 if (stringValue.length > 50) {
@@ -515,8 +515,11 @@ function displayResults(data, container) {
                 throw new Error("No valid data structure found");
             }
 
+            const $table = jQuery(`#dataTable${index}`);
+
+
             // Initialize DataTable
-            const dataTable = jQuery(`#dataTable${index}`).DataTable({
+            const dataTable = $table.DataTable({
                 data: dataSet,
                 columns: columns,
                 pageLength: 10,
@@ -524,12 +527,22 @@ function displayResults(data, container) {
                 scrollX: true,
                 autoWidth: false,
                 initComplete: function(settings, json) {
-                    jQuery(`#dataTable${index}`).css('font-size', '14px'); // Changed to 14px
+                    $table.css('font-size', '14px');
+
+                    // Add unique id and name attributes to form fields
+                    $table.find('input, select, textarea').each(function(i, el) {
+                        el.id = `${el.id || 'formField'}_${index}_${i}`;
+                        el.name = `${el.name || 'formField'}_${index}_${i}`;
+                    });
+                },
+                error: function(settings, helpPage, message) {
+                    console.error(`DataTables error: ${message}`);
                 }
             });
 
+
             // Add event listener for "Show more" links
-            jQuery(`#dataTable${index}`).on('click', 'a.show-more', function(e) {
+            $table.on('click', 'a.show-more', function(e) {
                 e.preventDefault();
                 const tr = $(this).closest('tr');
                 const row = dataTable.row(tr);
@@ -544,12 +557,12 @@ function displayResults(data, container) {
                 }
             });
 
-            tableContainer.style.display = 'none';
+
             console.log(`DataTable initialized for ${endpoint}`);
         } catch (error) {
             console.error(`Error processing endpoint ${endpoint}:`, error);
             tableContainer.innerHTML = `<p>Error processing data for this endpoint: ${error.message}</p>`;
-            tableContainer.style.display = 'none';
+            tableContainer.style.display = 'block';
         }
     });
 }
