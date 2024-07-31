@@ -2,7 +2,12 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeEventListeners();
     updateTime();
     setInterval(updateTime, 1000);
-    loadRefreshTokens();
+
+    // Only call loadRefreshTokens if the select element exists
+    if (document.getElementById('savedRefreshTokens')) {
+        loadRefreshTokens();
+    }
+
     parseIdToken();
 });
 
@@ -292,6 +297,12 @@ function fetchPostRequest(url, data) {
 }
 
 function loadRefreshTokens() {
+    const select = document.getElementById('savedRefreshTokens');
+    if (!select) {
+        console.warn('savedRefreshTokens select element not found. This might be expected if we are not on the relevant page.');
+        return; // Exit the function early if the element doesn't exist
+    }
+
     fetch('/get_refresh_tokens')
         .then(response => {
             if (!response.ok) {
@@ -302,11 +313,6 @@ function loadRefreshTokens() {
         .then(data => {
             if (!data.success) {
                 throw new Error(data.error || 'Unknown error occurred');
-            }
-            const select = document.getElementById('savedRefreshTokens');
-            if (!select) {
-                console.error('savedRefreshTokens select element not found');
-                return;
             }
             select.innerHTML = '<option value="">Select a saved refresh token</option>';
             if (Array.isArray(data.refresh_tokens)) {
@@ -322,9 +328,10 @@ function loadRefreshTokens() {
         })
         .catch(error => {
             console.error('Error loading refresh tokens:', error);
-            alert('Failed to load refresh tokens: ' + error.message);
+            select.innerHTML = '<option value="">Failed to load refresh tokens</option>';
         });
 }
+
 
 function deleteToken(tokenId, tokenType) {
     if (confirm('Are you sure you want to delete this token?')) {
