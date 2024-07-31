@@ -5,6 +5,7 @@ from utils import determine_token_type, insert_token, store_graph_results, gener
     request_token_with_secret, request_token_with_password, aware_utcnow, aware_utcfromtimestamp, naive_utcnow, \
     naive_utcfromtimestamp, get_all_pages
 from graph_endpoints import GRAPH_ENDPOINTS
+from microsoft_service_principals import microsoft_service_principals
 from config import Config
 import requests
 import json
@@ -71,7 +72,6 @@ def request_token_password():
             "success": False,
             "error": f"Request failed: {str(e)}"
         }), 400
-
 
 
 @app.route('/graph_enumerator')
@@ -247,7 +247,6 @@ def get_refresh_tokens():
     except Exception as e:
         print(f"Error in get_refresh_tokens: {str(e)}")  # Log the error
         return jsonify({"success": False, "error": str(e)}), 500
-
 
 
 @app.route('/token_details/<int:token_id>')
@@ -466,6 +465,50 @@ def graph_action(action, token_id):
                 "all_assignments": all_app_role_assignments,
                 "graph_assignments": graph_assignments
             })
+
+        elif action == 'get_mismatched_service_principals':
+            service_principals_url = f"{base_url}/servicePrincipals?$select=displayName,appId,appOwnerOrganizationId"
+            service_principals = get_all_pages(service_principals_url, headers)
+            mismatched_results = []
+            total_microsoft_sps = 0
+
+            microsoft_org_ids = ['f8cdef31-a31e-4b4a-93e4-5f571e91255a', '47df5bb7-e6bc-4256-afb0-dd8c8e3c1ce8']
+
+            for sp in service_principals:
+                display_name = sp.get('displayName')
+                app_id = sp.get('appId')
+                app_owner_org_id = sp.get('appOwnerOrganizationId')
+                if display_name in microsoft_service_principals:
+                    total_microsoft_sps += 1
+                    expected_app_ids = microsoft_service_principals[display_name]
+
+                    # Ensure expected_app_ids is always a list
+
+                    if not isinstance(expected_app_ids, list):
+                        expected_app_ids = [expected_app_ids]
+
+                    is_microsoft_sp = app_owner_org_id in microsoft_org_ids
+                    app_id_match = app_id in expected_app_ids
+                    unexpected_org = not is_microsoft_sp
+
+                    if not app_id_match or unexpected_org:
+                        mismatched_results.append({
+                            "displayName": display_name,
+                            "appId": app_id,
+                            "expectedAppIds": expected_app_ids,
+                            "appOwnerOrganizationId": app_owner_org_id,
+                            "isMicrosoftServicePrincipal": is_microsoft_sp,
+                            "unexpectedOrganization": unexpected_org
+                        })
+
+            return jsonify({
+                "totalServicePrincipals": len(service_principals),
+                "totalMicrosoftServicePrincipals": total_microsoft_sps,
+                "mismatchedServicePrincipals": mismatched_results
+            })
+
+
+
 
         # Add other actions here...
         elif action == 'get_mail_enabled_security_groups':

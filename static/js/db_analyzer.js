@@ -28,6 +28,11 @@ function setupActionButtons() {
             action: getPrivilegedRoles
         },
         {
+            name: 'Check for Mismatched Service Principals',
+            permissions: ['Application.Read.All', 'Application.ReadWrite.All', 'Directory.Read.All', 'Directory.ReadWrite.All'],
+            action: checkMismatchedServicePrincipals
+        },
+        {
             name: 'Get Custom Roles',
             permissions: ['RoleManagement.Read.Directory', 'RoleManagement.ReadWrite.Directory', 'Directory.Read.All', 'Directory.ReadWrite.All'],
             action: getCustomRoles
@@ -180,6 +185,10 @@ function getPrivilegedRoles() {
 
 function getSyncedObjects() {
     performGraphAction('get_synced_objects');
+}
+
+function checkMismatchedServicePrincipals() {
+    performGraphAction('get_mismatched_service_principals');
 }
 
 function getOwnedDevices() {
