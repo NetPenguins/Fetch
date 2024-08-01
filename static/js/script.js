@@ -83,7 +83,11 @@ function startDeviceCodeAuth() {
         if (data.error) {
             alert('Error: ' + data.error);
         } else {
-            document.getElementById('deviceCodeMessage').textContent = data.message;
+            // Replace the URL in the message with a clickable link
+            document.getElementById('deviceCodeMessage').innerHTML = data.message.replace(
+                'https://microsoft.com/devicelogin',
+                '<a href="https://microsoft.com/devicelogin" target="_blank" rel="noopener noreferrer">https://microsoft.com/devicelogin</a>'
+            );
             document.getElementById('deviceCodeUserCode').textContent = 'User Code: ' + data.user_code;
             document.getElementById('cancelDeviceCodeAuth').style.display = 'inline-block';
             pollForToken(clientId, data.device_code, tenant, data.interval);
