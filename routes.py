@@ -540,6 +540,60 @@ def graph_action(action, token_id):
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
 
+@app.route('/device_code_auth', methods=['POST'])
+def device_code_auth():
+    client_id = request.form.get('client_id')
+    tenant = request.form.get('tenant', 'common')
+    scope = request.form.get('scope', 'https://graph.microsoft.com/User.Read offline_access')
+
+    # Step 1: Request device code
+    device_code_url = f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/devicecode"
+    device_code_response = requests.post(device_code_url, data={
+        "client_id": client_id,
+        "scope": scope
+    })
+
+    if device_code_response.status_code != 200:
+        return jsonify({"error": "Failed to get device code"}), 400
+
+    device_code_data = device_code_response.json()
+
+    # Return the device code data to the client
+    return jsonify({
+        "user_code": device_code_data["user_code"],
+        "verification_uri": device_code_data["verification_uri"],
+        "message": device_code_data["message"],
+        "device_code": device_code_data["device_code"],
+        "interval": device_code_data["interval"]
+    })
+
+
+@app.route('/poll_for_token', methods=['POST'])
+def poll_for_token():
+    client_id = request.form.get('client_id')
+    device_code = request.form.get('device_code')
+    tenant = request.form.get('tenant', 'common')
+
+    token_url = f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token"
+
+    token_response = requests.post(token_url, data={
+        "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+        "client_id": client_id,
+        "device_code": device_code
+    })
+
+    if token_response.status_code == 200:
+        token_data = token_response.json()
+        access_token = token_data.get("access_token")
+        return jsonify({"status": "success", "access_token": access_token})
+    else:
+        error = token_response.json().get("error")
+        if error == "authorization_pending":
+            return jsonify({"status": "pending"})
+        else:
+            return jsonify({"status": "error", "error": error})
+
+
 @app.route('/current_time')
 def get_current_time():
     return jsonify({'current_time': aware_utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')})

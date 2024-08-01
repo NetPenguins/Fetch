@@ -13,6 +13,7 @@
         <li><a class="dropdown-item" href="#" onclick="showSection('requestTokenSecret')">Request Token with Client Secret</a></li>
         <li><a class="dropdown-item" href="#" onclick="showSection('requestTokenCertificate')">Request Token with Certificate</a></li>
         <li><a class="dropdown-item" href="#" onclick="showSection('authenticate')">Authenticate</a></li>
+        <li><a class="dropdown-item" href="#" onclick="showSection('deviceCodeAuth')">Device Code Auth</a></li>
     </ul>
 </li>
 {% endblock %}
@@ -102,8 +103,41 @@
             <button type="submit" class="btn btn-primary">Insert Token</button>
         </form>
     </div>
+</div>
 
-    <div id="requestTokenPassword" class="action-section" style="display:none;">
+<div id="deviceCodeAuth" class="action-section" style="display:none;">
+    <h4>Device Code Authentication</h4>
+    <form id="deviceCodeAuthForm">
+        <div class="form-group">
+            <label for="deviceCodeClientId">Client ID:</label>
+            <select id="deviceCodeClientId" class="form-control">
+                <option value="">Custom</option>
+                <option value="14d82eec-204b-4c2f-b7e8-296a70dab67e">Graph Command Line Tools</option>
+                <option value="04b07795-8ddb-461a-bbee-02f9e1bf7b46">Microsoft Azure CLI</option>
+                <option value="1950a258-227b-4e31-a9cf-717495945fc2">Microsoft Azure PowerShell</option>
+                <option value="00000003-0000-0000-c000-000000000000">Microsoft Graph</option>
+            </select>
+        </div>
+        <div id="customClientIdGroup" class="form-group" style="display:none;">
+            <input type="text" id="customClientId" class="form-control" placeholder="Enter custom Client ID">
+        </div>
+        <div class="form-group">
+            <input type="text" id="deviceCodeTenant" class="form-control" placeholder="Tenant (optional)">
+        </div>
+        <div class="form-group">
+            <input type="text" id="deviceCodeScope" class="form-control" placeholder="Scope (optional)">
+        </div>
+        <button type="button" class="btn btn-primary" id="startDeviceCodeAuth">Start Device Code Auth</button>
+        <button type="button" class="btn btn-secondary" id="cancelDeviceCodeAuth" style="display:none;">Cancel Auth</button>
+    </form>
+    <div id="deviceCodeResult" class="mt-3">
+        <p id="deviceCodeMessage"></p>
+        <p id="deviceCodeUserCode"></p>
+    </div>
+</div>
+
+
+<div id="requestTokenPassword" class="action-section" style="display:none;">
     <h4>Request Token with Password</h4>
     <form id="requestTokenPasswordForm">
         <div class="form-group">
@@ -131,7 +165,7 @@
     <div id="passwordTokenResult" class="mt-3"></div>
 </div>
 
-    <div id="requestTokenSecret" class="action-section" style="display:none;">
+<div id="requestTokenSecret" class="action-section" style="display:none;">
     <h4>Request Token with Client Secret</h4>
     <form id="requestTokenSecretForm">
         <div class="form-group">
@@ -152,7 +186,7 @@
     <div id="tokenResult" class="mt-3"></div>
 </div>
 
-    <div id="requestTokenCertificate" class="action-section" style="display:none;">
+<div id="requestTokenCertificate" class="action-section" style="display:none;">
         <h4>Request Token with Certificate</h4>
         <form id="requestTokenCertificateForm">
             <div class="form-group">
@@ -195,6 +229,8 @@
     <h5>Full Decoded Token</h5>
     <pre id="fullDecodedToken"></pre>
 </div>
+
+
 {% endblock %}
 
 {% block extra_js %}

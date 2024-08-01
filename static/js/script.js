@@ -1,23 +1,5 @@
-document.addEventListener('DOMContentLoaded', function() {
-    initializeEventListeners();
-    updateTime();
-    setInterval(updateTime, 1000);
-
-
-    loadRefreshTokens();
-    parseIdToken();
-});
-
-function initializeEventListeners() {
-    document.getElementById('queryTenantForm')?.addEventListener('submit', handleQueryTenant);
-    document.getElementById('insertTokenForm')?.addEventListener('submit', handleInsertToken);
-    document.getElementById('requestTokenSecretForm')?.addEventListener('submit', handleRequestTokenSecret);
-    document.getElementById('requestTokenCertificateForm')?.addEventListener('submit', handleRequestTokenCertificate);
-    document.getElementById('generateFromRefreshForm')?.addEventListener('submit', handleGenerateFromRefresh);
-    document.getElementById('insertRefreshTokenForm')?.addEventListener('submit', handleInsertRefreshToken);
-    document.getElementById('authenticateForm')?.addEventListener('submit', handleAuthenticate);
-    document.getElementById('requestTokenPasswordForm')?.addEventListener('submit', handleRequestTokenPassword);
-}
+var pollInterval;
+var isPollingCancelled = false;
 
 function showSection(sectionId) {
     console.log('Showing section:', sectionId);
@@ -57,6 +39,143 @@ function copyToken(tokenId) {
         });
 }
 
+function initializeDeviceCodeAuth() {
+    const deviceCodeClientIdSelect = document.getElementById('deviceCodeClientId');
+    if (deviceCodeClientIdSelect) {
+        handleDeviceCodeClientIdChange.call(deviceCodeClientIdSelect);
+    }
+}
+
+function handleDeviceCodeClientIdChange() {
+    const customClientIdGroup = document.getElementById('customClientIdGroup');
+    if (this.value === "") {
+        customClientIdGroup.style.display = 'block';
+    } else {
+        customClientIdGroup.style.display = 'none';
+    }
+}
+
+function startDeviceCodeAuth() {
+    const clientIdSelect = document.getElementById('deviceCodeClientId');
+    let clientId = clientIdSelect.value;
+    if (clientId === "") {
+        clientId = document.getElementById('customClientId').value;
+    }
+    const tenant = document.getElementById('deviceCodeTenant').value || 'common';
+    const scope = document.getElementById('deviceCodeScope').value || 'https://graph.microsoft.com/.default offline_access';
+
+    // Cancel any existing polling
+    cancelDeviceCodeAuth();
+
+    fetch('/device_code_auth', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+            client_id: clientId,
+            tenant: tenant,
+            scope: scope
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error: ' + data.error);
+        } else {
+            document.getElementById('deviceCodeMessage').textContent = data.message;
+            document.getElementById('deviceCodeUserCode').textContent = 'User Code: ' + data.user_code;
+            document.getElementById('cancelDeviceCodeAuth').style.display = 'inline-block';
+            pollForToken(clientId, data.device_code, tenant, data.interval);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while starting device code auth');
+    });
+}
+
+function pollForToken(clientId, deviceCode, tenant, interval) {
+    isPollingCancelled = false;
+    pollInterval = setInterval(() => {
+        if (isPollingCancelled) {
+            clearInterval(pollInterval);
+            return;
+        }
+
+        fetch('/poll_for_token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+                client_id: clientId,
+                device_code: deviceCode,
+                tenant: tenant
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                clearInterval(pollInterval);
+                fetch('/insert_token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        token: data.access_token
+                    })
+                })
+                .then(response => response.json())
+                .then(insertResult => {
+                    if (insertResult.success) {
+                        console.log('Access token inserted successfully');
+                        alert('Authentication successful! Access token has been inserted.');
+                        refreshTokenTable();
+                    } else {
+                        console.error('Failed to insert access token:', insertResult.error);
+                        alert('Authentication successful, but failed to insert access token: ' + insertResult.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error inserting access token:', error);
+                    alert('Authentication successful, but an error occurred while inserting the access token');
+                });
+                document.getElementById('cancelDeviceCodeAuth').style.display = 'none';
+                document.getElementById('deviceCodeMessage').textContent = '';
+                document.getElementById('deviceCodeUserCode').textContent = '';
+            } else if (data.status === 'error') {
+                clearInterval(pollInterval);
+                alert('Error: ' + data.error);
+                document.getElementById('cancelDeviceCodeAuth').style.display = 'none';
+                document.getElementById('deviceCodeMessage').textContent = '';
+                document.getElementById('deviceCodeUserCode').textContent = '';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            clearInterval(pollInterval);
+            alert('An error occurred while polling for token');
+            document.getElementById('cancelDeviceCodeAuth').style.display = 'none';
+            document.getElementById('deviceCodeMessage').textContent = '';
+            document.getElementById('deviceCodeUserCode').textContent = '';
+        });
+    }, interval * 1000);
+}
+
+function cancelDeviceCodeAuth() {
+    isPollingCancelled = true;
+    if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+    }
+    document.getElementById('deviceCodeMessage').textContent = '';
+    document.getElementById('deviceCodeUserCode').textContent = '';
+    document.getElementById('cancelDeviceCodeAuth').style.display = 'none';
+    console.log('Device code auth cancelled');
+}
+
 function handleRequestTokenPassword(e) {
     e.preventDefault();
     const formData = new FormData(e.target);
@@ -67,19 +186,17 @@ function handleRequestTokenPassword(e) {
         return;
     }
 
-    // Construct the token endpoint URL
     const tokenUrl = tenant.includes('.')
         ? `https://login.microsoftonline.com/${tenant}/oauth2/token`
         : `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`;
 
-    // Prepare the request body
     const body = new URLSearchParams({
         client_id: formData.get('client_id'),
         grant_type: 'password',
         username: formData.get('username'),
         password: formData.get('password'),
         scope: formData.get('scope'),
-        tenant: tenant  // Include tenant in the body
+        tenant: tenant
     });
 
     fetch('/request_token_password', {
@@ -105,9 +222,6 @@ function handleRequestTokenPassword(e) {
     });
 }
 
-
-
-
 function showTokenDetails(tokenId) {
     fetch(`/token_details/${tokenId}`)
         .then(response => {
@@ -122,7 +236,6 @@ function showTokenDetails(tokenId) {
             if (!data.success) {
                 throw new Error(data.error || 'Unknown error occurred');
             }
-            // Update highlighted claims table
             const highlightedClaimsTable = document.querySelector('#highlightedClaimsTable tbody');
             highlightedClaimsTable.innerHTML = '';
             for (const [claim, value] of Object.entries(data.highlighted_claims || {})) {
@@ -131,14 +244,12 @@ function showTokenDetails(tokenId) {
                 row.insertCell(1).textContent = value;
             }
 
-            // Update full decoded token
             if (data.full_decoded) {
                 document.getElementById('fullDecodedToken').textContent = JSON.stringify(data.full_decoded, null, 2);
             } else {
                 document.getElementById('fullDecodedToken').textContent = 'Full decoded token not available';
             }
 
-            // Show the token details section
             document.getElementById('tokenDetails').style.display = 'block';
         })
         .catch(error => {
@@ -178,10 +289,8 @@ function handleRequestTokenSecret(e) {
     const formData = new FormData(e.target);
     const tenant = formData.get('tenant');
 
-    // Determine the token endpoint based on tenant
     let tokenEndpoint = `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`;
 
-    // Prepare the data for the token request
     const data = {
         tenant: formData.get('tenant'),
         client_id: formData.get('client_id'),
@@ -190,7 +299,6 @@ function handleRequestTokenSecret(e) {
         grant_type: 'client_credentials'
     };
 
-    // URL encode the client secret
     data.client_secret = encodeURIComponent(data.client_secret);
 
     fetch('/request_token_secret', {
@@ -250,8 +358,6 @@ function handleGenerateFromRefresh(e) {
         .catch(() => alert('Failed to generate token from refresh token'));
 }
 
-
-
 function handleInsertRefreshToken(e) {
     e.preventDefault();
     const refreshToken = document.getElementById('newRefreshToken').value;
@@ -307,7 +413,6 @@ function parseIdToken() {
     }, {});
     if (result.id_token) {
         console.log("ID Token:", result.id_token);
-        // Handle the ID token as needed
     } else {
         console.log("No ID token found in URL hash");
     }
@@ -325,6 +430,10 @@ function fetchPostRequest(url, data) {
 
 function loadRefreshTokens() {
     const select = document.getElementById('refreshTokenSelect');
+    if (!select) {
+        console.log('Refresh token select element not found');
+        return;
+    }
     fetch('/get_refresh_tokens')
         .then(response => response.json())
         .then(data => {
@@ -343,8 +452,6 @@ function loadRefreshTokens() {
         .catch(error => console.error('Error loading refresh tokens:', error));
 }
 
-
-
 function deleteToken(tokenId, tokenType) {
     if (confirm('Are you sure you want to delete this token?')) {
         showLoader();
@@ -353,7 +460,6 @@ function deleteToken(tokenId, tokenType) {
             .then(data => {
                 hideLoader();
                 if (data.success) {
-                    // Remove the token row from the table
                     const row = document.querySelector(`#${tokenType}Token-${tokenId}`);
                     if (row) {
                         row.remove();
@@ -372,7 +478,6 @@ function deleteToken(tokenId, tokenType) {
 }
 
 function showLoader() {
-    // Implement a loading indicator
     const loader = document.createElement('div');
     loader.id = 'loader';
     loader.innerHTML = 'Deleting...';
@@ -392,4 +497,43 @@ function showNotification(message, type) {
     notification.textContent = message;
     document.body.appendChild(notification);
     setTimeout(() => notification.remove(), 3000);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    initializeEventListeners();
+    updateTime();
+    setInterval(updateTime, 1000);
+
+    loadRefreshTokens();
+    parseIdToken();
+    initializeDeviceCodeAuth();
+});
+
+function initializeEventListeners() {
+    document.getElementById('queryTenantForm')?.addEventListener('submit', handleQueryTenant);
+    document.getElementById('insertTokenForm')?.addEventListener('submit', handleInsertToken);
+    document.getElementById('requestTokenSecretForm')?.addEventListener('submit', handleRequestTokenSecret);
+    document.getElementById('requestTokenCertificateForm')?.addEventListener('submit', handleRequestTokenCertificate);
+    document.getElementById('generateFromRefreshForm')?.addEventListener('submit', handleGenerateFromRefresh);
+    document.getElementById('insertRefreshTokenForm')?.addEventListener('submit', handleInsertRefreshToken);
+    document.getElementById('authenticateForm')?.addEventListener('submit', handleAuthenticate);
+    document.getElementById('requestTokenPasswordForm')?.addEventListener('submit', handleRequestTokenPassword);
+    document.getElementById('deviceCodeClientId')?.addEventListener('change', handleDeviceCodeClientIdChange);
+
+    document.querySelectorAll('[data-section]').forEach(el => {
+        el.addEventListener('click', function(e) {
+            e.preventDefault();
+            showSection(this.dataset.section);
+        });
+    });
+
+    const cancelButton = document.getElementById('cancelDeviceCodeAuth');
+    if (cancelButton) {
+        cancelButton.addEventListener('click', cancelDeviceCodeAuth);
+    }
+
+    const startButton = document.getElementById('startDeviceCodeAuth');
+    if (startButton) {
+        startButton.addEventListener('click', startDeviceCodeAuth);
+    }
 }
