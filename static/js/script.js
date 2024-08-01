@@ -3,11 +3,8 @@ document.addEventListener('DOMContentLoaded', function() {
     updateTime();
     setInterval(updateTime, 1000);
 
-    // Only call loadRefreshTokens if the select element exists
-    if (document.getElementById('savedRefreshTokens')) {
-        loadRefreshTokens();
-    }
 
+    loadRefreshTokens();
     parseIdToken();
 });
 
@@ -179,21 +176,49 @@ function handleInsertToken(e) {
 function handleRequestTokenSecret(e) {
     e.preventDefault();
     const formData = new FormData(e.target);
-    fetchPostRequest('/request_token_secret', formData)
-        .then(data => {
-            if (data.success) {
-                document.getElementById('tokenResult').innerHTML = data.access_token ?
-                    'Access Token: ' + data.access_token : 'Access token not available';
-                if (data.decoded_token) {
-                    console.log('Decoded Token:', data.decoded_token);
-                }
-            } else {
-                document.getElementById('tokenResult').innerHTML = 'Error: ' + (data.error || 'Unknown error');
-            }
-        })
-        .catch(() => {
-            document.getElementById('tokenResult').innerHTML = 'An error occurred';
-        });
+    const tenant = formData.get('tenant');
+
+    // Determine the token endpoint based on tenant
+    let tokenEndpoint = `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`;
+
+    // Prepare the data for the token request
+    const data = {
+        tenant: formData.get('tenant'),
+        client_id: formData.get('client_id'),
+        scope: formData.get('scope'),
+        client_secret: formData.get('client_secret'),
+        grant_type: 'client_credentials'
+    };
+
+    // URL encode the client secret
+    data.client_secret = encodeURIComponent(data.client_secret);
+
+    fetch('/request_token_secret', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        const resultDiv = document.getElementById('tokenResult');
+        if (data.success) {
+            resultDiv.innerHTML = `
+                <p>Access Token: ${data.access_token}</p>
+                <p>Token Type: ${data.token_type}</p>
+                <p>Expires In: ${data.expires_in} seconds</p>
+            `;
+            alert('Token generated successfully!');
+            refreshTokenTable();
+        } else {
+            resultDiv.innerHTML = `<p>Error: ${data.error}</p>`;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        document.getElementById('tokenResult').innerHTML = '<p>An error occurred while requesting the token.</p>';
+    });
 }
 
 function handleRequestTokenCertificate(e) {
@@ -224,6 +249,8 @@ function handleGenerateFromRefresh(e) {
         })
         .catch(() => alert('Failed to generate token from refresh token'));
 }
+
+
 
 function handleInsertRefreshToken(e) {
     e.preventDefault();
@@ -297,25 +324,12 @@ function fetchPostRequest(url, data) {
 }
 
 function loadRefreshTokens() {
-    const select = document.getElementById('savedRefreshTokens');
-    if (!select) {
-        console.warn('savedRefreshTokens select element not found. This might be expected if we are not on the relevant page.');
-        return; // Exit the function early if the element doesn't exist
-    }
-
+    const select = document.getElementById('refreshTokenSelect');
     fetch('/get_refresh_tokens')
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            return response.json();
-        })
+        .then(response => response.json())
         .then(data => {
-            if (!data.success) {
-                throw new Error(data.error || 'Unknown error occurred');
-            }
-            select.innerHTML = '<option value="">Select a saved refresh token</option>';
-            if (Array.isArray(data.refresh_tokens)) {
+            if (data.success) {
+                select.innerHTML = '<option value="">Select a refresh token</option>';
                 data.refresh_tokens.forEach(token => {
                     const option = document.createElement('option');
                     option.value = token.token;
@@ -323,14 +337,12 @@ function loadRefreshTokens() {
                     select.appendChild(option);
                 });
             } else {
-                console.error('refresh_tokens is not an array:', data.refresh_tokens);
+                console.error('Failed to load refresh tokens:', data.error);
             }
         })
-        .catch(error => {
-            console.error('Error loading refresh tokens:', error);
-            select.innerHTML = '<option value="">Failed to load refresh tokens</option>';
-        });
+        .catch(error => console.error('Error loading refresh tokens:', error));
 }
+
 
 
 function deleteToken(tokenId, tokenType) {
