@@ -464,15 +464,26 @@ function handleAuthenticate(e) {
 }
 
 function refreshTokenTable() {
+    console.log('Starting table refresh');
     fetch('/')
-        .then(response => response.text())
+        .then(response => {
+            console.log('Received response from server');
+            return response.text();
+        })
         .then(html => {
+            console.log('Parsing HTML');
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
             ['accessTokenTable', 'refreshTokenTable'].forEach(tableId => {
                 const newTable = doc.querySelector(`#${tableId}`);
-                if (newTable) document.querySelector(`#${tableId}`).replaceWith(newTable);
+                if (newTable) {
+                    console.log(`Replacing table: ${tableId}`);
+                    document.querySelector(`#${tableId}`).replaceWith(newTable);
+                } else {
+                    console.log(`Table not found in response: ${tableId}`);
+                }
             });
+            console.log('Table refresh complete');
         })
         .catch(error => console.error('Error refreshing token tables:', error));
 }
@@ -525,28 +536,30 @@ function loadRefreshTokens() {
         .catch(error => console.error('Error loading refresh tokens:', error));
 }
 
-function deleteToken(tokenId, tokenType) {
+function deleteToken(tokenId, event) {
+    event.preventDefault();
+
     if (confirm('Are you sure you want to delete this token?')) {
-        showLoader();
-        fetch(`/delete_token/${tokenId}`, { method: 'POST' })
-            .then(response => response.json())
-            .then(data => {
-                hideLoader();
-                if (data.success) {
-                    const row = document.querySelector(`#${tokenType}Token-${tokenId}`);
-                    if (row) {
-                        row.remove();
-                    }
-                    showNotification('Token deleted successfully', 'success');
-                } else {
-                    showNotification('Failed to delete token: ' + data.error, 'error');
-                }
-            })
-            .catch(error => {
-                hideLoader();
-                console.error('Error:', error);
-                showNotification('An error occurred while deleting the token', 'error');
-            });
+        fetch(`/delete_token/${tokenId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => {
+            if (response.status === 204) {
+                console.log(`Token ${tokenId} deleted successfully`);
+                console.log('Refreshing token table...'); // Add this line
+                refreshTokenTable();
+            } else if (response.status === 404) {
+                console.log(`Token ${tokenId} not found`);
+            } else {
+                console.log(`Unexpected status: ${response.status}`);
+            }
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+        });
     }
 }
 

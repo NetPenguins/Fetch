@@ -236,19 +236,25 @@ def delete_token(token_id):
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # First, check if it's an access token
-    cursor.execute('DELETE FROM access_tokens WHERE id = ?', (token_id,))
-    if cursor.rowcount == 0:
-        # If not found in access_tokens, check refresh_tokens
-        cursor.execute('DELETE FROM refresh_tokens WHERE id = ?', (token_id,))
+    # First, check which table the token is in
+    cursor.execute('SELECT 1 FROM access_tokens WHERE id = ?', (token_id,))
+    is_access_token = cursor.fetchone() is not None
 
+    if is_access_token:
+        cursor.execute('DELETE FROM access_tokens WHERE id = ?', (token_id,))
+        table_name = 'access_tokens'
+    else:
+        cursor.execute('DELETE FROM refresh_tokens WHERE id = ?', (token_id,))
+        table_name = 'refresh_tokens'
+
+    deleted = cursor.rowcount > 0
     conn.commit()
     conn.close()
 
-    if cursor.rowcount > 0:
-        return jsonify({"success": True, "message": "Token deleted successfully"}), 200
+    if deleted:
+        return '', 204  # No Content
     else:
-        return jsonify({"success": False, "error": "Token not found"}), 404
+        return '', 404  # Not Found
 
 
 @app.route('/get_refresh_tokens')

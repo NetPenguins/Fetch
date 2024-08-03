@@ -46,7 +46,7 @@
                     <button onclick="showTokenDetails({{ token.id }})" class="btn btn-info btn-sm">Details</button>
                     <button onclick="copyToken({{ token.id }})" class="btn btn-sm btn-secondary">Copy</button>
                     <form action="{{ url_for('delete_token', token_id=token.id) }}" method="post" style="display:inline;">
-                        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                        <button onclick="deleteToken({{ token.id }}, event)" class="btn btn-danger btn-sm">Delete</button>
                     </form>
                 </td>
             </tr>
@@ -73,7 +73,7 @@
                 <td>
                     <button onclick="copyRefreshToken({{ token.id }})" class="btn btn-secondary btn-sm">Copy</button>
                     <form action="{{ url_for('delete_token', token_id=token.id) }}" method="post" style="display:inline;">
-                        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                        <button onclick="deleteToken({{ token.id }}, event)" class="btn btn-danger btn-sm">Delete</button>
                     </form>
                 </td>
             </tr>
@@ -111,11 +111,11 @@
         <div class="form-group">
             <label for="deviceCodeClientId">Client ID:</label>
             <select id="deviceCodeClientId" class="form-control">
-                <option value="">Custom</option>
                 <option value="14d82eec-204b-4c2f-b7e8-296a70dab67e">Graph Command Line Tools</option>
                 <option value="04b07795-8ddb-461a-bbee-02f9e1bf7b46">Microsoft Azure CLI</option>
                 <option value="1950a258-227b-4e31-a9cf-717495945fc2">Microsoft Azure PowerShell</option>
                 <option value="00000003-0000-0000-c000-000000000000">Microsoft Graph</option>
+                <option value="">Custom</option>
             </select>
         </div>
         <div id="customClientIdGroup" class="form-group" style="display:none;">
