@@ -14,7 +14,7 @@
     <select id="tokenSelect" class="form-select">
         <option value="">Choose a token</option>
         {% for token in access_tokens %}
-            <option value="{{ token.id }}">{{ token.oid }} - {{ token.audience }}</option>
+            <option value="{{ token.id }}">{{ token.id }} - {{ token.audience }} - {{ token.email }}</option>
         {% endfor %}
     </select>
 </div>

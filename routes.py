@@ -77,7 +77,7 @@ def request_token_password():
 @app.route('/graph_enumerator')
 def graph_enumerator():
     conn = get_db_connection()
-    access_tokens = conn.execute('SELECT id, oid, audience FROM access_tokens').fetchall()
+    access_tokens = conn.execute('SELECT id, oid, audience, email FROM access_tokens').fetchall()
     conn.close()
     current_time = aware_utcnow()
     return render_template('graph_enumerator.html',
@@ -332,7 +332,7 @@ def get_token_permissions(token_id):
 @app.route('/db_analyzer')
 def db_analyzer():
     conn = get_db_connection()
-    access_tokens = conn.execute('SELECT id, oid, audience FROM access_tokens').fetchall()
+    access_tokens = conn.execute('SELECT id, oid, audience, email FROM access_tokens').fetchall()
     conn.close()
     current_time = aware_utcnow()
     return render_template('db_analyzer.html',
