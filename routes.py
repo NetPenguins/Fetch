@@ -147,35 +147,9 @@ def request_token_secret():
     client_id = request.form.get('client_id')
     scope = request.form.get('scope')
     client_secret = request.form.get('client_secret')
-    grant_type = request.form.get('grant_type')
 
-    token_endpoint = f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token"
-
-    data = {
-        'client_id': client_id,
-        'scope': scope,
-        'client_secret': client_secret,
-        'grant_type': grant_type
-    }
-
-    try:
-        response = requests.post(token_endpoint, data=data)
-        response.raise_for_status()
-        result = response.json()
-        access_token = result.get('access_token')
-        if access_token:
-            insert_token(access_token)
-            return jsonify({
-                "success": True,
-                "access_token": access_token,
-                "token_type": result.get('token_type'),
-                "expires_in": result.get('expires_in')
-            })
-        else:
-            return jsonify({"error": "No access token in response"})
-    except requests.exceptions.RequestException as e:
-        return jsonify({"error": f"Error: {str(e)}"})
-
+    result = request_token_with_secret(client_id, client_secret, scope, tenant)
+    return jsonify(result), 200 if result.get('success') else 400
 
 @app.route('/generate_from_refresh', methods=['POST'])
 def generate_from_refresh():

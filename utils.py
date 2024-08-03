@@ -127,7 +127,13 @@ def generate_new_tokens(client_id, refresh_token):
         return {"error": "Failed to generate new access token"}
 
 
-def request_token_with_secret(client_id, client_secret, scope, token_endpoint):
+def request_token_with_secret(client_id, client_secret, scope, tenant):
+    # Check if tenant is a full domain or just a tenant ID
+    if '.' in tenant and not tenant.startswith('http'):
+        tenant = f"{tenant}"
+
+    token_endpoint = f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token"
+
     data = {
         'client_id': client_id,
         'scope': scope,
@@ -137,12 +143,17 @@ def request_token_with_secret(client_id, client_secret, scope, token_endpoint):
 
     try:
         response = requests.post(token_endpoint, data=data)
-        response.raise_for_status()  # Raises a HTTPError if the status is 4xx, 5xx
+        response.raise_for_status()
         result = response.json()
         access_token = result.get('access_token')
         if access_token:
             insert_token(access_token)
-            return {"success": True, "access_token": access_token}
+            return {
+                "success": True,
+                "access_token": access_token,
+                "token_type": result.get('token_type'),
+                "expires_in": result.get('expires_in')
+            }
         else:
             return {"error": "No access token in response"}
     except requests.exceptions.RequestException as e:

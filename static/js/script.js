@@ -316,6 +316,13 @@ function copyPWToken(type) {
     }
 }
 
+function copyClientToken() {
+    const accessToken = document.querySelector('#tokenResult pre').textContent;
+    navigator.clipboard.writeText(accessToken)
+        .then(() => console.log('Access token copied to clipboard'))
+        .catch(err => console.error('Failed to copy access token: ', err));
+}
+
 
 
 function showTokenDetails(tokenId) {
@@ -385,17 +392,18 @@ function handleRequestTokenSecret(e) {
     const formData = new FormData(e.target);
     const tenant = formData.get('tenant');
 
-    let tokenEndpoint = `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`;
+    if (!tenant) {
+        alert('Tenant ID or Domain is required');
+        return;
+    }
 
     const data = {
-        tenant: formData.get('tenant'),
+        tenant: tenant,
         client_id: formData.get('client_id'),
         scope: formData.get('scope'),
         client_secret: formData.get('client_secret'),
         grant_type: 'client_credentials'
     };
-
-    data.client_secret = encodeURIComponent(data.client_secret);
 
     fetch('/request_token_secret', {
         method: 'POST',
@@ -409,21 +417,27 @@ function handleRequestTokenSecret(e) {
         const resultDiv = document.getElementById('tokenResult');
         if (data.success) {
             resultDiv.innerHTML = `
-                <p>Access Token: ${data.access_token}</p>
+                <h5>Access Token</h5>
+                <div class="position-relative mb-3">
+                    <pre class="p-3 rounded" style="background-color: #e9ecef; white-space: pre-wrap; word-wrap: break-word;">${data.access_token}</pre>
+                    <button class="btn btn-sm btn-secondary position-absolute top-0 end-0 m-2" onclick="copyClientToken()">Copy</button>
+                </div>
                 <p>Token Type: ${data.token_type}</p>
                 <p>Expires In: ${data.expires_in} seconds</p>
             `;
-            alert('Token generated successfully!');
-            refreshTokenTable();
+            console.log('Token generated successfully!');
+            storeToken(data.access_token);
         } else {
             resultDiv.innerHTML = `<p>Error: ${data.error}</p>`;
+            console.error('Failed to generate token:', data.error);
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        document.getElementById('tokenResult').innerHTML = '<p>An error occurred while requesting the token.</p>';
+        document.getElementById('tokenResult').innerHTML = '<p>An error occurred while requesting the token. Check the console for details.</p>';
     });
 }
+
 
 function handleRequestTokenCertificate(e) {
     e.preventDefault();
