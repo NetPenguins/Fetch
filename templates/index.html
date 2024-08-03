@@ -2,6 +2,10 @@
 
 {% block title %}Fetch - Token Manager{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/graph.css') }}">
+{% endblock %}
+
 {% block navbar_extra %}
 <li class="nav-item dropdown">
     <a class="nav-link dropdown-toggle" href="#" id="requestTokenDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">

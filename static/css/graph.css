@@ -288,3 +288,22 @@ table.dataTable {
 #tokenScpContent {
     font-size: 14px;
 }
+
+.code-block-container {
+        position: relative;
+        margin-top: 1rem;
+}
+
+.code-block-container pre {
+        background-color: #f4f4f4;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 1rem;
+        margin-top: 0;
+}
+
+.copy-btn {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+}
