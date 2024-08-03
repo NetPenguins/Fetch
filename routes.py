@@ -533,6 +533,19 @@ def graph_action(action, token_id):
             mail_enabled_security_groups = get_all_pages(groups_url, headers)
             return jsonify({"value": mail_enabled_security_groups})
 
+        elif action == 'get_user_consent_requests':
+            consent_requests_url = f"{base_url}/identityGovernance/appConsent/appConsentRequests"
+            app_consent_requests = get_all_pages(consent_requests_url, headers)
+
+            user_consent_requests = []
+            for app_request in app_consent_requests:
+                user_requests_url = f"{base_url}/identityGovernance/appConsent/appConsentRequests/{app_request['id']}/userConsentRequests"
+                user_requests = get_all_pages(user_requests_url, headers)
+                user_consent_requests.extend(user_requests)
+
+            return jsonify({"value": user_consent_requests})
+
+
         else:
             return jsonify({"error": "Invalid action"}), 400
 

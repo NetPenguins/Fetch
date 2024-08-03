@@ -28,6 +28,11 @@ function setupActionButtons() {
             action: getPrivilegedRoles
         },
         {
+            name: 'Get User Consent Requests',
+            permissions: ['ConsentRequest.Read.All', 'ConsentRequest.ReadWrite.All'],
+            action: getUserConsentRequests
+        },
+        {
             name: 'Check for Mismatched Service Principals',
             permissions: ['Application.Read.All', 'Application.ReadWrite.All', 'Directory.Read.All', 'Directory.ReadWrite.All'],
             action: checkMismatchedServicePrincipals
@@ -132,7 +137,9 @@ function checkAndHighlightPermissions(tokenId) {
                 // Define high-level permissions
                 const highLevelPermissions = new Set([
                     'Directory.Read.All',
-                    'Directory.ReadWrite.All'
+                    'Directory.ReadWrite.All',
+                    'ConsentRequest.Read.All',
+                    'ConsentRequest.ReadWrite.All'
                 ]);
 
                 document.querySelectorAll('#actionButtons button').forEach(button => {
@@ -185,6 +192,10 @@ function getPrivilegedRoles() {
 
 function getSyncedObjects() {
     performGraphAction('get_synced_objects');
+}
+
+function getUserConsentRequests() {
+    performGraphAction('get_user_consent_requests');
 }
 
 function checkMismatchedServicePrincipals() {
