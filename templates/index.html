@@ -142,7 +142,16 @@
     <form id="requestTokenPasswordForm">
         <div class="form-group">
             <label for="passwordClientId">Client ID:</label>
-            <input type="text" id="passwordClientId" name="client_id" class="form-control" required>
+            <select id="passwordClientId" name="client_id" class="form-control">
+                <option value="14d82eec-204b-4c2f-b7e8-296a70dab67e">Graph Command Line Tools</option>
+                <option value="04b07795-8ddb-461a-bbee-02f9e1bf7b46">Microsoft Azure CLI</option>
+                <option value="1950a258-227b-4e31-a9cf-717495945fc2">Microsoft Azure PowerShell</option>
+                <option value="00000003-0000-0000-c000-000000000000">Microsoft Graph</option>
+                <option value="">Custom</option>
+            </select>
+        </div>
+        <div id="customPasswordClientIdGroup" class="form-group" style="display:none;">
+            <input type="text" id="customPasswordClientId" class="form-control" placeholder="Enter custom Client ID">
         </div>
         <div class="form-group">
             <label for="passwordUsername">Username:</label>
@@ -200,7 +209,8 @@
     </div>
 
     <div id="authenticate" class="action-section" style="display:none;">
-        <h4>Authenticate</h4>
+        <h4>Implicit Grant Auth</h4>
+        // https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-implicit-grant-flow
         <form id="authenticateForm">
             <div class="form-group">
                 <input type="text" id="authClientId" class="form-control token-input" placeholder="Client ID" required>

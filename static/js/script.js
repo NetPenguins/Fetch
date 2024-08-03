@@ -55,6 +55,22 @@ function handleDeviceCodeClientIdChange() {
     }
 }
 
+function initializePasswordAuth() {
+    const passwordClientIdSelect = document.getElementById('passwordClientId');
+    if (passwordClientIdSelect) {
+        handlePasswordClientIdChange.call(passwordClientIdSelect);
+    }
+}
+
+function handlePasswordClientIdChange() {
+    const customPasswordClientIdGroup = document.getElementById('customPasswordClientIdGroup');
+    if (this.value === "") {
+        customPasswordClientIdGroup.style.display = 'block';
+    } else {
+        customPasswordClientIdGroup.style.display = 'none';
+    }
+}
+
 function startDeviceCodeAuth() {
     const clientIdSelect = document.getElementById('deviceCodeClientId');
     let clientId = clientIdSelect.value;
@@ -185,9 +201,9 @@ function handleRequestTokenPassword(e) {
     const formData = new FormData(e.target);
     const tenant = formData.get('tenant');
 
-    if (!tenant) {
-        alert('Tenant ID or Domain is required');
-        return;
+    let clientId = formData.get('client_id');
+    if (clientId === "") {
+        clientId = document.getElementById('customPasswordClientId').value;
     }
 
     const tokenUrl = tenant.includes('.')
@@ -523,6 +539,8 @@ function initializeEventListeners() {
     document.getElementById('authenticateForm')?.addEventListener('submit', handleAuthenticate);
     document.getElementById('requestTokenPasswordForm')?.addEventListener('submit', handleRequestTokenPassword);
     document.getElementById('deviceCodeClientId')?.addEventListener('change', handleDeviceCodeClientIdChange);
+    document.getElementById('passwordClientId')?.addEventListener('change', handlePasswordClientIdChange);
+
 
     document.querySelectorAll('[data-section]').forEach(el => {
         el.addEventListener('click', function(e) {
