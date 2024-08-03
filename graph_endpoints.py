@@ -20,6 +20,22 @@ GRAPH_ENDPOINTS = {
             "applicationPermission": "Directory.Read.All"
         }
     },
+    "Governance": {
+        "appConsent": {
+            "appConsentRequests": {
+                "path": "/identityGovernance/appConsent/appConsentRequests",
+                "delegatedPermission": "ConsentRequest.Read.All",
+                "applicationPermission": "ConsentRequest.Read.All"
+            }
+        },
+        "policies": {
+            "adminConsentRequestPolicy": {
+                "path": "/policies/adminConsentRequestPolicy",
+                "delegatedPermission": "Policy.Read.All",
+                "applicationPermission": "Policy.Read.All"
+            }
+        }
+    },
     "Identity": {
         "apiConnectors": {
             "path": "/identity/apiConnectors",
