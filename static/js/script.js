@@ -215,10 +215,6 @@ function handleRequestTokenPassword(e) {
         return;
     }
 
-    const tokenUrl = tenant.includes('.')
-        ? `https://login.microsoftonline.com/${tenant}/oauth2/token`
-        : `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`;
-
     const body = new URLSearchParams({
         client_id: formData.get('client_id'),
         grant_type: 'password',
@@ -249,6 +245,8 @@ function handleRequestTokenPassword(e) {
                         <button class="btn btn-sm btn-secondary position-absolute top-0 end-0 m-2" onclick="copyPWToken('access')">Copy</button>
                     </div>
                 `;
+                // Store the access token
+                storeToken(data.access_token);
             }
 
             if (data.refresh_token) {
@@ -259,9 +257,12 @@ function handleRequestTokenPassword(e) {
                         <button class="btn btn-sm btn-secondary position-absolute top-0 end-0 m-2" onclick="copyPWToken('refresh')">Copy</button>
                     </div>
                 `;
+                // Store the refresh token
+                storeToken(data.refresh_token);
             }
 
             document.getElementById('passwordTokenResult').innerHTML = resultHtml;
+            refreshTokenTable();
         } else {
             console.log('Failed to generate token: ' + (data.error || 'Unknown error'));
         }
@@ -269,6 +270,28 @@ function handleRequestTokenPassword(e) {
     .catch(error => {
         console.error('Error:', error);
         alert('An error occurred while requesting the token');
+    });
+}
+
+function storeToken(token) {
+    fetch('/insert_token', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({token: token})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('Token stored successfully');
+            refreshTokenTable();  // Refresh tables after successful storage
+        } else {
+            console.error('Failed to store token:', data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error storing token:', error);
     });
 }
 
@@ -474,19 +497,30 @@ function refreshTokenTable() {
             console.log('Parsing HTML');
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
-            ['accessTokenTable', 'refreshTokenTable'].forEach(tableId => {
-                const newTable = doc.querySelector(`#${tableId}`);
-                if (newTable) {
-                    console.log(`Replacing table: ${tableId}`);
-                    document.querySelector(`#${tableId}`).replaceWith(newTable);
-                } else {
-                    console.log(`Table not found in response: ${tableId}`);
-                }
-            });
+
+            // Update access tokens table
+            const newAccessTokenTable = doc.querySelector('#accessTokenTable');
+            if (newAccessTokenTable) {
+                console.log('Replacing access token table');
+                document.querySelector('#accessTokenTable').replaceWith(newAccessTokenTable);
+            } else {
+                console.log('Access token table not found in response');
+            }
+
+            // Update refresh tokens table
+            const newRefreshTokenTable = doc.querySelector('#refreshTokenTable');
+            if (newRefreshTokenTable) {
+                console.log('Replacing refresh token table');
+                document.querySelector('#refreshTokenTable').replaceWith(newRefreshTokenTable);
+            } else {
+                console.log('Refresh token table not found in response');
+            }
+
             console.log('Table refresh complete');
         })
         .catch(error => console.error('Error refreshing token tables:', error));
 }
+
 
 function parseIdToken() {
     const hash = window.location.hash.substr(1);
