@@ -167,7 +167,7 @@
         </div>
         <div class="form-group">
             <label for="passwordScope">Scope:</label>
-            <input type="text" id="passwordScope" name="scope" class="form-control" value="https://graph.microsoft.com/.default" required>
+            <input type="text" id="passwordScope" name="scope" class="form-control" value="https://graph.microsoft.com/.default offline_access openid email" required>
         </div>
         <button type="submit" class="btn btn-primary">Request Token</button>
     </form>
@@ -237,7 +237,10 @@
         </tbody>
     </table>
     <h5>Full Decoded Token</h5>
-    <pre id="fullDecodedToken"></pre>
+    <div class="position-relative">
+        <pre id="fullDecodedToken" class="p-3 rounded" style="background-color: #e9ecef; white-space: pre-wrap; word-wrap: break-word;"></pre>
+        <button class="btn btn-sm btn-secondary position-absolute top-0 end-0 m-2" onclick="copyFullDecodedToken()">Copy</button>
+    </div>
 </div>
 
 

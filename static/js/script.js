@@ -24,19 +24,28 @@ function copyToken(tokenId) {
         .then(data => {
             if (data.success && data.access_token) {
                 navigator.clipboard.writeText(data.access_token)
-                    .then(() => alert('Access token copied to clipboard'))
+                    .then(() => console.log('Access token copied to clipboard'))
                     .catch(err => {
                         console.error('Could not copy text: ', err);
-                        alert('Failed to copy to clipboard. See console for details.');
+                        console.log('Failed to copy to clipboard. See console for details.');
                     });
             } else {
-                alert('Failed to get access token: ' + (data.error || 'Unknown error'));
+                console.log('Failed to get access token: ' + (data.error || 'Unknown error'));
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('An error occurred while fetching the token');
+            console.log('An error occurred while fetching the token');
         });
+}
+
+function copyFullDecodedToken() {
+    const tokenText = document.getElementById('fullDecodedToken').textContent;
+    navigator.clipboard.writeText(tokenText).then(() => {
+        console.log('Full decoded token copied to clipboard');
+    }).catch(err => {
+        console.error('Failed to copy: ', err);
+    });
 }
 
 function initializeDeviceCodeAuth() {
@@ -151,7 +160,7 @@ function pollForToken(clientId, deviceCode, tenant, interval) {
                 .then(insertResult => {
                     if (insertResult.success) {
                         console.log('Access token inserted successfully');
-                        alert('Authentication successful! Access token has been inserted.');
+                        console.log('Authentication successful! Access token has been inserted.');
                         refreshTokenTable();
                     } else {
                         console.error('Failed to insert access token:', insertResult.error);
@@ -160,7 +169,7 @@ function pollForToken(clientId, deviceCode, tenant, interval) {
                 })
                 .catch(error => {
                     console.error('Error inserting access token:', error);
-                    alert('Authentication successful, but an error occurred while inserting the access token');
+                    console.log('Authentication successful, but an error occurred while inserting the access token');
                 });
                 document.getElementById('cancelDeviceCodeAuth').style.display = 'none';
                 document.getElementById('deviceCodeMessage').textContent = '';
@@ -201,9 +210,9 @@ function handleRequestTokenPassword(e) {
     const formData = new FormData(e.target);
     const tenant = formData.get('tenant');
 
-    let clientId = formData.get('client_id');
-    if (clientId === "") {
-        clientId = document.getElementById('customPasswordClientId').value;
+    if (!tenant) {
+        alert('Tenant ID or Domain is required');
+        return;
     }
 
     const tokenUrl = tenant.includes('.')
@@ -229,11 +238,32 @@ function handleRequestTokenPassword(e) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('Token generated successfully!');
-            document.getElementById('passwordTokenResult').innerHTML =
-                `Access Token: ${data.access_token}<br>Refresh Token: ${data.refresh_token || 'Not provided'}`;
+            console.log('Token generated successfully!');
+            let resultHtml = '';
+
+            if (data.access_token) {
+                resultHtml += `
+                    <h5>Access Token</h5>
+                    <div class="position-relative mb-3">
+                        <pre class="p-3 rounded" style="background-color: #e9ecef; white-space: pre-wrap; word-wrap: break-word;">${data.access_token}</pre>
+                        <button class="btn btn-sm btn-secondary position-absolute top-0 end-0 m-2" onclick="copyPWToken('access')">Copy</button>
+                    </div>
+                `;
+            }
+
+            if (data.refresh_token) {
+                resultHtml += `
+                    <h5>Refresh Token</h5>
+                    <div class="position-relative mb-3">
+                        <pre class="p-3 rounded" style="background-color: #e9ecef; white-space: pre-wrap; word-wrap: break-word;">${data.refresh_token}</pre>
+                        <button class="btn btn-sm btn-secondary position-absolute top-0 end-0 m-2" onclick="copyPWToken('refresh')">Copy</button>
+                    </div>
+                `;
+            }
+
+            document.getElementById('passwordTokenResult').innerHTML = resultHtml;
         } else {
-            alert('Failed to generate token: ' + (data.error || 'Unknown error'));
+            console.log('Failed to generate token: ' + (data.error || 'Unknown error'));
         }
     })
     .catch(error => {
@@ -241,6 +271,29 @@ function handleRequestTokenPassword(e) {
         alert('An error occurred while requesting the token');
     });
 }
+
+function copyPWToken(type) {
+    const tokenElements = document.querySelectorAll('#passwordTokenResult pre');
+    let tokenText;
+
+    if (type === 'access' && tokenElements.length > 0) {
+        tokenText = tokenElements[0].textContent;
+    } else if (type === 'refresh' && tokenElements.length > 1) {
+        tokenText = tokenElements[1].textContent;
+    }
+
+    if (tokenText) {
+        navigator.clipboard.writeText(tokenText).then(() => {
+            console.log(`${type.charAt(0).toUpperCase() + type.slice(1)} token copied to clipboard`);
+        }).catch(err => {
+            console.error('Failed to copy: ', err);
+        });
+    } else {
+        console.error(`${type} token not found`);
+    }
+}
+
+
 
 function showTokenDetails(tokenId) {
     fetch(`/token_details/${tokenId}`)
@@ -296,7 +349,7 @@ function handleInsertToken(e) {
             if (data.error) {
                 alert(data.error);
             } else {
-                alert(data.message);
+                console.log(data.message);
                 document.getElementById('token').value = '';
                 refreshTokenTable();
             }
