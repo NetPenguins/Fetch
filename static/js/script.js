@@ -264,12 +264,12 @@ function handleRequestTokenPassword(e) {
             document.getElementById('passwordTokenResult').innerHTML = resultHtml;
             refreshTokenTable();
         } else {
-            console.log('Failed to generate token: ' + (data.error || 'Unknown error'));
+           alert('Failed to generate token: ' + (data.error || 'Unknown error'));
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        alert('An error occurred while requesting the token');
+        alert('Error:', error);
+        console.log('An error occurred while requesting the token');
     });
 }
 
