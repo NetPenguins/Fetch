@@ -38,6 +38,11 @@ function setupActionButtons() {
             action: checkMismatchedServicePrincipals
         },
         {
+            name: 'Check Expiring Application Passwords',
+            permissions: ['Application.Read.All', 'Application.ReadWrite.All', 'Directory.Read.All', 'Directory.ReadWrite.All'],
+            action: checkExpiringAppPasswords
+        },
+        {
             name: 'Get Custom Roles',
             permissions: ['RoleManagement.Read.Directory', 'RoleManagement.ReadWrite.Directory', 'Directory.Read.All', 'Directory.ReadWrite.All'],
             action: getCustomRoles
@@ -188,6 +193,10 @@ function checkAndHighlightPermissions(tokenId) {
 
 function getPrivilegedRoles() {
     performGraphAction('get_privileged_roles');
+}
+
+function checkExpiringAppPasswords() {
+    performGraphAction('check_expiring_app_passwords');
 }
 
 function getSyncedObjects() {

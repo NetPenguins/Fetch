@@ -10,7 +10,7 @@ from config import Config
 import requests
 import json
 import jwt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import time
 
 
@@ -157,6 +157,7 @@ def request_token_secret():
 
     result = request_token_with_secret(client_id, client_secret, scope, tenant)
     return jsonify(result), 200 if result.get('success') else 400
+
 
 @app.route('/generate_from_refresh', methods=['POST'])
 def generate_from_refresh():
@@ -469,6 +470,46 @@ def graph_action(action, token_id):
                 "all_assignments": all_app_role_assignments,
                 "graph_assignments": graph_assignments
             })
+
+
+
+        elif action == 'check_expiring_app_passwords':
+            applications_url = f"{base_url}/applications?$select=appId,id,passwordCredentials"
+            applications = get_all_pages(applications_url, headers)
+            expiring_apps = []
+            thirty_days_from_now = aware_utcnow() + timedelta(days=30)
+
+            for app in applications:
+                app_id = app.get('appId')
+                app_object_id = app.get('id')
+                password_credentials = app.get('passwordCredentials', [])
+                for cred in password_credentials:
+                    end_date_str = cred.get('endDateTime')
+                    if end_date_str:
+                        try:
+                            # Parse the date string, ignoring sub-millisecond precision
+                            end_date = datetime.strptime(end_date_str[:23], "%Y-%m-%dT%H:%M:%S.%f").replace(
+                                tzinfo=timezone.utc)
+                            if end_date <= thirty_days_from_now:
+                                expiring_apps.append({
+                                    "appId": app_id,
+                                    "id": app_object_id,
+                                    "keyId": cred.get('keyId'),
+                                    "expirationDate": end_date_str  # Use the original string
+
+                                })
+
+                        except ValueError:
+                            # If parsing fails, just use the original string
+                            if end_date_str <= thirty_days_from_now.isoformat():
+                                expiring_apps.append({
+                                    "appId": app_id,
+                                    "id": app_object_id,
+                                    "keyId": cred.get('keyId'),
+                                    "expirationDate": end_date_str
+                                })
+
+            return jsonify({"expiringApplications": expiring_apps})
 
         elif action == 'get_mismatched_service_principals':
             service_principals_url = f"{base_url}/servicePrincipals?$select=displayName,appId,appOwnerOrganizationId"
