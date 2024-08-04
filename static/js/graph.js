@@ -477,24 +477,46 @@ async function enumerateGraph() {
 
         // Sort the results
         const sortedResults = Object.entries(data).sort((a, b) => {
-            const statusOrder = { success: 0, empty: 1, error: 2 };
+            const statusOrder = { success: 0, empty: 1, warning: 2, error: 3 };
             const statusA = getResultStatus(a[1]);
             const statusB = getResultStatus(b[1]);
-            return statusOrder[statusA] - statusOrder[statusB];
+
+            if (statusOrder[statusA] !== statusOrder[statusB]) {
+                return statusOrder[statusA] - statusOrder[statusB];
+            }
+
+            return a[0].localeCompare(b[0]);
         });
 
+        let currentStatus = null;
         sortedResults.forEach(([endpoint, result], index) => {
             const status = getResultStatus(result);
+
+            if (status !== currentStatus) {
+                if (currentStatus !== null) {
+                    // Add a separator between different status groups
+                    resultsDiv.appendChild(createSeparator());
+                }
+                currentStatus = status;
+            }
+
             const sectionDiv = createResultSection(endpoint, result, index, status);
             resultsDiv.appendChild(sectionDiv);
         });
+
     } catch (error) {
         console.error('Error:', error);
         document.getElementById(RESULTS_DIV_ID).innerHTML = `<p class="text-danger">Error: ${error.message}</p>`;
     }
 }
 
-// Create results header with legend
+function createSeparator() {
+    const separator = document.createElement('hr');
+    separator.className = 'my-4';
+    return separator;
+}
+
+
 function createResultsHeader() {
     return `
         <div class="d-flex justify-content-between align-items-center mb-3">
