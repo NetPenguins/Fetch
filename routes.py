@@ -110,7 +110,11 @@ def enumerate_graph():
         try:
             response = requests.get(url, headers=headers)
             response.raise_for_status()
-            return response.json()
+            json_response = response.json()
+            if not json_response or (
+                    isinstance(json_response, dict) and 'value' in json_response and not json_response['value']):
+                return {"warning": "Empty result set", "raw_response": json_response}
+            return json_response
         except requests.exceptions.RequestException as e:
             error_message = str(e)
             status_code = e.response.status_code if e.response else None
