@@ -1,110 +1,125 @@
-// graph.js
+// Constants
+const ENDPOINTS_DATA_ID = 'graph-endpoints-data';
+const TOKEN_SELECT_ID = 'tokenSelect';
+const ENDPOINTS_LIST_ID = 'endpointsList';
+const SELECT_ALL_BTN_ID = 'selectAllBtn';
+const DESELECT_ALL_BTN_ID = 'deselectAllBtn';
+const ENUMERATE_BTN_ID = 'enumerateBtn';
+const RESULTS_DIV_ID = 'results';
+const TOKEN_SCP_ID = 'tokenScp';
+const TOKEN_SCP_CONTENT_ID = 'tokenScpContent';
+const CURRENT_TIME_ID = 'currentTime';
 
-document.addEventListener('DOMContentLoaded', () => {
-    const endpointsData = JSON.parse(document.getElementById('graph-endpoints-data').textContent);
-    createEndpointsList(endpointsData);
+// Global state
+let GRAPH_ENDPOINTS = null;
 
-    const tokenSelect = document.getElementById('tokenSelect');
-    if (tokenSelect) {
-        tokenSelect.addEventListener('change', function() {
-            checkAndHighlightPermissions(this.value);
-        });
+// DOM Elements
+const tokenSelect = document.getElementById(TOKEN_SELECT_ID);
+const endpointsList = document.getElementById(ENDPOINTS_LIST_ID);
+const selectAllBtn = document.getElementById(SELECT_ALL_BTN_ID);
+const deselectAllBtn = document.getElementById(DESELECT_ALL_BTN_ID);
+const enumerateBtn = document.getElementById(ENUMERATE_BTN_ID);
+
+// Event Listeners
+document.addEventListener('DOMContentLoaded', initializeApp);
+
+// Main initialization function
+async function initializeApp() {
+    try {
+        GRAPH_ENDPOINTS = await loadEndpointsData();
+        createEndpointsList(GRAPH_ENDPOINTS);
+        setupEventListeners();
+        updateCurrentTime();
+        setInterval(updateCurrentTime, 1000);
+    } catch (error) {
+        console.error('Failed to initialize app:', error);
+        // Display error to user
     }
+}
 
-    const selectAllBtn = document.getElementById('selectAllBtn');
-    const deselectAllBtn = document.getElementById('deselectAllBtn');
-    const enumerateBtn = document.getElementById('enumerateBtn');
+// Load endpoints data
+async function loadEndpointsData() {
+    const dataElement = document.getElementById(ENDPOINTS_DATA_ID);
+    return JSON.parse(dataElement.textContent);
+}
 
-    if (selectAllBtn) {
-        selectAllBtn.addEventListener('click', selectAll);
-    }
-
-    if (deselectAllBtn) {
-        deselectAllBtn.addEventListener('click', deselectAll);
-    }
-
-    if (enumerateBtn) {
-        enumerateBtn.addEventListener('click', enumerateGraph);
-    }
-
-    updateCurrentTime();
-    setInterval(updateCurrentTime, 1000);
-});
-
+// Create endpoints list
 function createEndpointsList(endpoints) {
-    const endpointsList = document.getElementById('endpointsList');
     endpointsList.innerHTML = '';
 
     for (const [category, subcategories] of Object.entries(endpoints)) {
-        const categoryWrapper = document.createElement('div');
-        categoryWrapper.className = 'category-wrapper';
+        const categoryWrapper = createCategoryWrapper(category, subcategories);
+        endpointsList.appendChild(categoryWrapper);
+    }
+}
 
-        const categoryHeader = document.createElement('div');
-        categoryHeader.className = 'category-header';
-        categoryHeader.innerHTML = `
-            <input type="checkbox" class="category-checkbox" id="category-${category}">
-            <span class="category-toggle">+</span> ${category}
-        `;
-        categoryHeader.onclick = toggleCategory;
+function createCategoryWrapper(category, subcategories) {
+    const categoryWrapper = document.createElement('div');
+    categoryWrapper.className = 'category-wrapper';
 
-        const categoryContent = document.createElement('div');
-        categoryContent.className = 'category-content';
-        categoryContent.style.display = 'none';
+    const categoryHeader = createCategoryHeader(category);
+    const categoryContent = createCategoryContent(category, subcategories);
 
-        let endpointCount = 0;
+    categoryWrapper.appendChild(categoryHeader);
+    categoryWrapper.appendChild(categoryContent);
+
+    return categoryWrapper;
+}
+
+function createCategoryHeader(category) {
+    const categoryHeader = document.createElement('div');
+    categoryHeader.className = 'category-header';
+    categoryHeader.innerHTML = `
+        <input type="checkbox" class="category-checkbox" id="category-${category}">
+        <span class="category-toggle">+</span> ${category}
+    `;
+    categoryHeader.onclick = toggleCategory;
+
+    const categoryCheckbox = categoryHeader.querySelector('.category-checkbox');
+    categoryCheckbox.addEventListener('change', (e) => {
+        e.stopPropagation();
+        toggleCategoryCheckbox(e.target);
+    });
+
+    return categoryHeader;
+}
+
+function createCategoryContent(category, subcategories) {
+    const categoryContent = document.createElement('div');
+    categoryContent.className = 'category-content';
+    categoryContent.style.display = 'none';
+
+    let endpointCount = 0;
 
     for (const [subcategory, data] of Object.entries(subcategories)) {
-        const subcategoryDiv = document.createElement('div');
-        subcategoryDiv.className = 'subcategory';
+        const subcategoryDiv = createSubcategoryDiv(category, subcategory, data);
+        categoryContent.appendChild(subcategoryDiv);
+        endpointCount += getEndpointCount(data);
+    }
 
-        if (typeof data === 'object' && data.path) {
-            const endpointItem = createEndpointItem(category, subcategory, data);
-            subcategoryDiv.appendChild(endpointItem);
-            endpointCount++;
-        } else {
-            subcategoryDiv.innerHTML = `<strong>${subcategory}</strong>`;
-            for (const [endpoint, endpointData] of Object.entries(data)) {
-                if (typeof endpointData === 'object' && endpointData.path) {
-                    const endpointItem = createEndpointItem(category, `${subcategory}.${endpoint}`, endpointData);
-                    subcategoryDiv.appendChild(endpointItem);
-                    endpointCount++;
-                }
+    addEndpointListeners(categoryContent, category, endpointCount);
+
+    return categoryContent;
+}
+
+function createSubcategoryDiv(category, subcategory, data) {
+    const subcategoryDiv = document.createElement('div');
+    subcategoryDiv.className = 'subcategory';
+
+    if (typeof data === 'object' && data.path) {
+        const endpointItem = createEndpointItem(category, subcategory, data);
+        subcategoryDiv.appendChild(endpointItem);
+    } else {
+        subcategoryDiv.innerHTML = `<strong>${subcategory}</strong>`;
+        for (const [endpoint, endpointData] of Object.entries(data)) {
+            if (typeof endpointData === 'object' && endpointData.path) {
+                const endpointItem = createEndpointItem(category, `${subcategory}.${endpoint}`, endpointData);
+                subcategoryDiv.appendChild(endpointItem);
             }
         }
-
-        categoryContent.appendChild(subcategoryDiv);
     }
 
-
-        const categoryCheckbox = categoryHeader.querySelector('.category-checkbox');
-        categoryCheckbox.addEventListener('change', (e) => {
-            e.stopPropagation();
-            toggleCategoryCheckbox(e.target);
-        });
-
-        const oldCategoryCheckbox = document.getElementById(`category-${category}`);
-        if (oldCategoryCheckbox) {
-            categoryCheckbox.checked = oldCategoryCheckbox.checked;
-            categoryCheckbox.indeterminate = oldCategoryCheckbox.indeterminate;
-        }
-
-        categoryWrapper.appendChild(categoryHeader);
-        categoryWrapper.appendChild(categoryContent);
-        endpointsList.appendChild(categoryWrapper);
-
-        // Add event listeners to update category checkbox
-        const endpointCheckboxes = categoryContent.querySelectorAll('input[type="checkbox"]');
-        endpointCheckboxes.forEach(cb => {
-            cb.addEventListener('change', () => {
-                updateCategoryCheckbox(category, endpointCount);
-            });
-        });
-
-
-
-        // Initial update of category checkbox
-        updateCategoryCheckbox(category, endpointCount);
-    }
+    return subcategoryDiv;
 }
 
 function createEndpointItem(category, endpoint) {
@@ -119,21 +134,261 @@ function createEndpointItem(category, endpoint) {
     return endpointItem;
 }
 
-function toggleCategory(event) {
-    if (event.target.type === 'checkbox') {
-        return; // Don't toggle content if checkbox was clicked
+function getEndpointCount(data) {
+    if (typeof data === 'object' && data.path) {
+        return 1;
     }
+    return Object.values(data).filter(item => typeof item === 'object' && item.path).length;
+}
+
+function addEndpointListeners(categoryContent, category, endpointCount) {
+    const endpointCheckboxes = categoryContent.querySelectorAll('input[type="checkbox"]');
+    endpointCheckboxes.forEach(cb => {
+        cb.addEventListener('change', () => {
+            updateCategoryCheckbox(category, endpointCount);
+        });
+    });
+}
+
+// Setup event listeners
+function setupEventListeners() {
+    if (tokenSelect) {
+        tokenSelect.addEventListener('change', () => checkAndHighlightPermissions(tokenSelect.value));
+    }
+
+    if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', selectAll);
+    }
+
+    if (deselectAllBtn) {
+        deselectAllBtn.addEventListener('click', deselectAll);
+    }
+
+    if (enumerateBtn) {
+        enumerateBtn.addEventListener('click', enumerateGraph);
+    }
+}
+
+// Check and highlight permissions
+async function checkAndHighlightPermissions(tokenId) {
+    if (!tokenId) {
+        hideTokenScp();
+        return;
+    }
+
+    try {
+        const permissions = await fetchTokenPermissions(tokenId);
+        displayTokenPermissions(permissions);
+        highlightEndpoints(permissions);
+    } catch (error) {
+        console.error('Error checking permissions:', error);
+        hideTokenScp();
+    }
+}
+
+// Fetch token permissions
+async function fetchTokenPermissions(tokenId) {
+    const response = await fetch(`/get_token_permissions/${tokenId}`);
+    const data = await response.json();
+    if (!data.success || !data.permissions) {
+        throw new Error('Failed to fetch token permissions');
+    }
+    return data.permissions;
+}
+
+// Display token permissions
+function displayTokenPermissions(permissions) {
+    const tokenScpDiv = document.getElementById(TOKEN_SCP_ID);
+    const tokenScpContent = document.getElementById(TOKEN_SCP_CONTENT_ID);
+    tokenScpContent.innerHTML = permissions.map(perm =>
+        `<a href="https://graphpermissions.merill.net/permission/${perm}" target="_blank">${perm}</a>`
+    ).join(' ');
+    tokenScpDiv.style.display = 'block';
+}
+
+// Hide token SCP
+function hideTokenScp() {
+    document.getElementById(TOKEN_SCP_ID).style.display = 'none';
+}
+
+// Highlight endpoints based on permissions
+function highlightEndpoints(permissions) {
+    const permSet = new Set(permissions.map(p => p.replace('.ReadWrite.', '.Read.')));
+    const accessAsUserPermissions = new Set(permissions
+        .filter(p => p.includes('.AccessAsUser.'))
+        .map(p => p.split('.AccessAsUser.')[0]));
+
+    const endpointStatus = {};
+
+    document.querySelectorAll('.category-wrapper').forEach(category => {
+        const categoryName = category.querySelector('.category-header').textContent.trim().replace(/^[−-]\s*/, '');
+        const endpointCheckboxes = category.querySelectorAll('input[name="endpoints"]');
+
+        endpointCheckboxes.forEach(checkbox => {
+            const endpointPath = checkbox.value.split('.');
+            let endpointData = GRAPH_ENDPOINTS;
+            for (const key of endpointPath) {
+                if (endpointData && endpointData[key]) {
+                    endpointData = endpointData[key];
+                } else {
+                    endpointData = null;
+                    break;
+                }
+            }
+
+            if (endpointData && endpointData.path) {
+                endpointStatus[checkbox.value] = getEndpointStatus(endpointData, permSet, accessAsUserPermissions);
+            }
+        });
+    });
+
+    organizeEndpoints(endpointStatus);
+}
+
+function getEndpointStatus(endpointData, permSet, accessAsUserPermissions) {
+    const delegatedPerm = endpointData.delegatedPermission ? endpointData.delegatedPermission.replace('.ReadWrite.', '.Read.') : null;
+    const appPerm = endpointData.applicationPermission ? endpointData.applicationPermission.replace('.ReadWrite.', '.Read.') : null;
+
+    if (permSet.has(delegatedPerm) || permSet.has(appPerm)) {
+        return 'allowed';
+    } else if ((delegatedPerm && accessAsUserPermissions.has(delegatedPerm.split('.')[0])) ||
+               (appPerm && accessAsUserPermissions.has(appPerm.split('.')[0]))) {
+        return 'potentially-allowed';
+    } else {
+        return 'not-allowed';
+    }
+}
+
+// Organize endpoints based on status
+function organizeEndpoints(endpointStatus) {
+    const categories = {};
+
+    Object.entries(endpointStatus).forEach(([endpoint, status]) => {
+        const [category, ...rest] = endpoint.split('.');
+        if (!categories[category]) {
+            categories[category] = { allowed: [], potentiallyAllowed: [], notAllowed: [], status: 'not-allowed' };
+        }
+
+        const endpointItem = document.querySelector(`input[value="${endpoint}"]`).closest('.endpoint-item');
+        updateEndpointItemStatus(endpointItem, status);
+        updateCategoryStatus(categories[category], status, endpointItem);
+    });
+
+    const sortedCategories = sortCategories(categories);
+    renderSortedCategories(sortedCategories);
+}
+
+function updateEndpointItemStatus(endpointItem, status) {
+    endpointItem.classList.remove('highlighted', 'potentially-allowed');
+    if (status === 'allowed') {
+        endpointItem.classList.add('highlighted');
+    } else if (status === 'potentially-allowed') {
+        endpointItem.classList.add('potentially-allowed');
+    }
+}
+
+function updateCategoryStatus(category, status, endpointItem) {
+    if (status === 'allowed') {
+        category.allowed.push(endpointItem);
+        category.status = 'allowed';
+    } else if (status === 'potentially-allowed') {
+        category.potentiallyAllowed.push(endpointItem);
+        if (category.status !== 'allowed') {
+            category.status = 'potentially-allowed';
+        }
+    } else {
+        category.notAllowed.push(endpointItem);
+    }
+}
+
+function sortCategories(categories) {
+    return Object.entries(categories).sort((a, b) => {
+        const order = { 'allowed': 0, 'potentially-allowed': 1, 'not-allowed': 2 };
+        return order[a[1].status] - order[b[1].status];
+    });
+}
+
+function renderSortedCategories(sortedCategories) {
+    const scrollPosition = endpointsList.scrollTop;
+    endpointsList.innerHTML = '';
+
+    sortedCategories.forEach(([category, endpoints]) => {
+        const categoryWrapper = createSortedCategoryWrapper(category, endpoints);
+        endpointsList.appendChild(categoryWrapper);
+    });
+
+    endpointsList.scrollTop = scrollPosition;
+}
+
+function createSortedCategoryWrapper(category, endpoints) {
+    const categoryWrapper = document.createElement('div');
+    categoryWrapper.className = 'category-wrapper';
+
+    const categoryHeader = createSortedCategoryHeader(category, endpoints);
+    const categoryContent = createSortedCategoryContent(category, endpoints);
+
+    categoryWrapper.appendChild(categoryHeader);
+    categoryWrapper.appendChild(categoryContent);
+
+    return categoryWrapper;
+}
+
+function createSortedCategoryHeader(category, endpoints) {
+    const categoryHeader = document.createElement('div');
+    categoryHeader.className = 'category-header';
+    if (endpoints.status === 'allowed') {
+        categoryHeader.classList.add('highlighted');
+    } else if (endpoints.status === 'potentially-allowed') {
+        categoryHeader.classList.add('potentially-allowed');
+    }
+
+    categoryHeader.innerHTML = `
+        <input type="checkbox" class="category-checkbox" id="category-${category}">
+        <span class="category-toggle">+</span> ${category}
+    `;
+    categoryHeader.onclick = toggleCategory;
+
+    const categoryCheckbox = categoryHeader.querySelector('.category-checkbox');
+    categoryCheckbox.addEventListener('change', (e) => {
+        e.stopPropagation();
+        toggleCategoryCheckbox(e.target);
+    });
+
+    return categoryHeader;
+}
+
+function createSortedCategoryContent(category, endpoints) {
+    const categoryContent = document.createElement('div');
+    categoryContent.className = 'category-content';
+    categoryContent.style.display = 'none';
+
+    endpoints.allowed.concat(endpoints.potentiallyAllowed, endpoints.notAllowed)
+        .forEach(endpoint => {
+            categoryContent.appendChild(endpoint);
+            const checkbox = endpoint.querySelector('input[type="checkbox"]');
+            checkbox.addEventListener('change', () => {
+                updateCategoryCheckbox(category, endpoints.allowed.length + endpoints.potentiallyAllowed.length + endpoints.notAllowed.length);
+            });
+        });
+
+    return categoryContent;
+}
+
+// Toggle category visibility
+function toggleCategory(event) {
+    if (event.target.type === 'checkbox') return;
     const content = this.nextElementSibling;
     const toggle = this.querySelector('.category-toggle');
     if (content.style.display === 'none') {
         content.style.display = 'block';
-        toggle.textContent = '−'; // Using minus sign
+        toggle.textContent = '−';
     } else {
         content.style.display = 'none';
         toggle.textContent = '+';
     }
 }
 
+// Toggle category checkbox
 function toggleCategoryCheckbox(checkbox) {
     const categoryContent = checkbox.closest('.category-header').nextElementSibling;
     const childCheckboxes = categoryContent.querySelectorAll('input[type="checkbox"]');
@@ -148,17 +403,19 @@ function toggleCategoryCheckbox(checkbox) {
     updateCategoryCheckbox(category, childCheckboxes.length);
 }
 
+// Update category checkbox state
+// Update category checkbox state
 function updateCategoryCheckbox(category, totalEndpoints) {
-    const categoryCheckbox = document.getElementById(`category-${category}`);
+    const safeCategory = category.replace(/[^a-zA-Z0-9]/g, '_');
+    const categoryCheckbox = document.getElementById(`category-${safeCategory}`);
     if (categoryCheckbox) {
-        const checkedEndpoints = document.querySelectorAll(`#category-${category} ~ .category-content input[type="checkbox"]:checked`).length;
+        const checkedEndpoints = document.querySelectorAll(`#category-${safeCategory} ~ .category-content input[type="checkbox"]:checked`).length;
         categoryCheckbox.checked = checkedEndpoints === totalEndpoints;
         categoryCheckbox.indeterminate = checkedEndpoints > 0 && checkedEndpoints < totalEndpoints;
-    } else {
-        console.warn(`Checkbox for category ${category} not found`);
     }
 }
 
+// Select all endpoints
 function selectAll() {
     document.querySelectorAll('#endpointsList input[type="checkbox"]').forEach(checkbox => {
         checkbox.checked = true;
@@ -166,6 +423,7 @@ function selectAll() {
     updateAllCategoryCheckboxes();
 }
 
+// Deselect all endpoints
 function deselectAll() {
     document.querySelectorAll('#endpointsList input[type="checkbox"]').forEach(checkbox => {
         checkbox.checked = false;
@@ -173,6 +431,7 @@ function deselectAll() {
     updateAllCategoryCheckboxes();
 }
 
+// Update all category checkboxes
 function updateAllCategoryCheckboxes() {
     document.querySelectorAll('.category-wrapper').forEach(category => {
         const categoryName = category.querySelector('.category-header').textContent.trim().replace(/^\+\s*/, '');
@@ -181,393 +440,316 @@ function updateAllCategoryCheckboxes() {
     });
 }
 
-function checkAndHighlightPermissions(tokenId) {
-    if (!tokenId) {
-        document.getElementById('tokenScp').style.display = 'none';
-        return;
-    }
-
-    fetch(`/get_token_permissions/${tokenId}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success && data.permissions) {
-                // Display SCP as clickable links
-                const tokenScpDiv = document.getElementById('tokenScp');
-                const tokenScpContent = document.getElementById('tokenScpContent');
-                tokenScpContent.innerHTML = data.permissions.map(perm =>
-                    `<a href="https://graphpermissions.merill.net/permission/${perm}" target="_blank">${perm}</a>`
-                ).join(' ');
-                tokenScpDiv.style.display = 'block';
-
-                const permissions = new Set(data.permissions.map(p => p.replace('.ReadWrite.', '.Read.')));
-                const accessAsUserPermissions = new Set(data.permissions
-                    .filter(p => p.includes('.AccessAsUser.'))
-                    .map(p => p.split('.AccessAsUser.')[0]));
-
-                const endpointStatus = {};
-
-                document.querySelectorAll('.category-wrapper').forEach(category => {
-                    const categoryHeader = category.querySelector('.category-header');
-                    const categoryName = categoryHeader.textContent.trim().replace(/^\+\s*/, '');
-                    const endpointCheckboxes = category.querySelectorAll('input[name="endpoints"]');
-
-                    endpointCheckboxes.forEach(checkbox => {
-                        const endpointPath = checkbox.value.split('.');
-                        let endpointData = window.GRAPH_ENDPOINTS;
-                        for (const key of endpointPath) {
-                            if (endpointData && endpointData[key]) {
-                                endpointData = endpointData[key];
-                            } else {
-                                endpointData = null;
-                                break;
-                            }
-                        }
-
-                        if (endpointData && endpointData.path) {
-                            const delegatedPerm = endpointData.delegatedPermission ? endpointData.delegatedPermission.replace('.ReadWrite.', '.Read.') : null;
-                            const appPerm = endpointData.applicationPermission ? endpointData.applicationPermission.replace('.ReadWrite.', '.Read.') : null;
-
-                            if (permissions.has(delegatedPerm) || permissions.has(appPerm)) {
-                                endpointStatus[checkbox.value] = 'allowed';
-                            } else if ((delegatedPerm && accessAsUserPermissions.has(delegatedPerm.split('.')[0])) ||
-                                       (appPerm && accessAsUserPermissions.has(appPerm.split('.')[0]))) {
-                                endpointStatus[checkbox.value] = 'potentially-allowed';
-                            } else {
-                                endpointStatus[checkbox.value] = 'not-allowed';
-                            }
-                        }
-                    });
-                });
-
-                organizeEndpoints(endpointStatus);
-            } else {
-                document.getElementById('tokenScp').style.display = 'none';
-            }
-        })
-        .catch(error => {
-            console.error('Error checking permissions:', error);
-            document.getElementById('tokenScp').style.display = 'none';
-        });
-}
-
-
-function organizeEndpoints(endpointStatus) {
-    const endpointsList = document.getElementById('endpointsList');
-    const categories = {};
-
-    // Group endpoints by category and sort them
-    Object.entries(endpointStatus).forEach(([endpoint, status]) => {
-        const [category, ...rest] = endpoint.split('.');
-        if (!categories[category]) {
-            categories[category] = { allowed: [], potentiallyAllowed: [], notAllowed: [], status: 'not-allowed' };
-        }
-
-        const endpointItem = document.querySelector(`input[value="${endpoint}"]`).closest('.endpoint-item');
-        endpointItem.classList.remove('highlighted', 'potentially-allowed');
-
-        if (status === 'allowed') {
-            endpointItem.classList.add('highlighted');
-            categories[category].allowed.push(endpointItem);
-            categories[category].status = 'allowed';
-        } else if (status === 'potentially-allowed') {
-            endpointItem.classList.add('potentially-allowed');
-            categories[category].potentiallyAllowed.push(endpointItem);
-            if (categories[category].status !== 'allowed') {
-                categories[category].status = 'potentially-allowed';
-            }
-        } else {
-            categories[category].notAllowed.push(endpointItem);
-        }
-    });
-
-    // Sort categories by status
-    const sortedCategories = Object.entries(categories).sort((a, b) => {
-        const order = { 'allowed': 0, 'potentially-allowed': 1, 'not-allowed': 2 };
-        return order[a[1].status] - order[b[1].status];
-    });
-
-    // Store current scroll position
-    const scrollPosition = endpointsList.scrollTop;
-
-    // Clear existing content
-    endpointsList.innerHTML = '';
-
-    // Create and append sorted category wrappers
-    sortedCategories.forEach(([category, endpoints]) => {
-        const categoryWrapper = document.createElement('div');
-        categoryWrapper.className = 'category-wrapper';
-
-        const categoryHeader = document.createElement('div');
-        categoryHeader.className = 'category-header';
-
-        // Set category highlight status
-        if (endpoints.status === 'allowed') {
-            categoryHeader.classList.add('highlighted');
-        } else if (endpoints.status === 'potentially-allowed') {
-            categoryHeader.classList.add('potentially-allowed');
-        }
-
-        categoryHeader.innerHTML = `
-            <input type="checkbox" class="category-checkbox" id="category-${category}">
-            <span class="category-toggle">+</span> ${category}
-        `;
-        categoryHeader.onclick = toggleCategory;
-
-        const categoryContent = document.createElement('div');
-        categoryContent.className = 'category-content';
-        categoryContent.style.display = 'none';
-
-        const categoryCheckbox = categoryHeader.querySelector('.category-checkbox');
-        categoryCheckbox.addEventListener('change', (e) => {
-            e.stopPropagation();
-            toggleCategoryCheckbox(e.target);
-        });
-
-        // Preserve checked state of category
-        const oldCategoryCheckbox = document.getElementById(`category-${category}`);
-        if (oldCategoryCheckbox) {
-            categoryCheckbox.checked = oldCategoryCheckbox.checked;
-            categoryCheckbox.indeterminate = oldCategoryCheckbox.indeterminate;
-        }
-
-        // Append endpoints in order: allowed, potentially allowed, not allowed
-        endpoints.allowed.concat(endpoints.potentiallyAllowed, endpoints.notAllowed)
-            .forEach(endpoint => {
-                categoryContent.appendChild(endpoint);
-
-                // Preserve checked state of endpoint
-                const checkbox = endpoint.querySelector('input[type="checkbox"]');
-                const oldCheckbox = document.getElementById(checkbox.id);
-                if (oldCheckbox) {
-                    checkbox.checked = oldCheckbox.checked;
-                }
-
-                // Add event listener to update category checkbox when endpoint is checked/unchecked
-                checkbox.addEventListener('change', () => {
-                    updateCategoryCheckbox(category, endpoints.allowed.length + endpoints.potentiallyAllowed.length + endpoints.notAllowed.length);
-                });
-            });
-
-        categoryWrapper.appendChild(categoryHeader);
-        categoryWrapper.appendChild(categoryContent);
-        endpointsList.appendChild(categoryWrapper);
-
-        // Update category checkbox state based on its endpoints
-        updateCategoryCheckbox(category, endpoints.allowed.length + endpoints.potentiallyAllowed.length + endpoints.notAllowed.length);
-    });
-
-    // Restore scroll position
-    endpointsList.scrollTop = scrollPosition;
-}
-function enumerateGraph() {
-    const tokenId = document.getElementById('tokenSelect').value;
+async function enumerateGraph() {
+    const tokenId = tokenSelect.value;
     if (!tokenId) {
         alert("Please select an access token first.");
         return;
     }
 
     const endpoints = Array.from(document.querySelectorAll('input[name="endpoints"]:checked')).map(cb => cb.value);
+    if (endpoints.length === 0) {
+        alert("Please select at least one endpoint.");
+        return;
+    }
+
     const formData = new FormData();
     formData.append('token_id', tokenId);
     endpoints.forEach(endpoint => formData.append('endpoints', endpoint));
 
-    fetch('/enumerate_graph', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        const resultsDiv = document.getElementById('results');
-        resultsDiv.innerHTML = '<h2>Enumeration Results</h2>';
-        displayResults(data, resultsDiv);
-    })
-    .catch(error => {
+    try {
+        const response = await fetch('/enumerate_graph', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (Object.keys(data).length === 0) {
+            throw new Error("No data returned from the server");
+        }
+
+        const resultsDiv = document.getElementById(RESULTS_DIV_ID);
+        resultsDiv.innerHTML = createResultsHeader();
+
+        // Sort the results
+        const sortedResults = Object.entries(data).sort((a, b) => {
+            const statusOrder = { success: 0, empty: 1, error: 2 };
+            const statusA = getResultStatus(a[1]);
+            const statusB = getResultStatus(b[1]);
+            return statusOrder[statusA] - statusOrder[statusB];
+        });
+
+        sortedResults.forEach(([endpoint, result], index) => {
+            const status = getResultStatus(result);
+            const sectionDiv = createResultSection(endpoint, result, index, status);
+            resultsDiv.appendChild(sectionDiv);
+        });
+    } catch (error) {
         console.error('Error:', error);
-        document.getElementById('results').innerHTML = `<p class="text-danger">Error: ${error.message}</p>`;
-    });
+        document.getElementById(RESULTS_DIV_ID).innerHTML = `<p class="text-danger">Error: ${error.message}</p>`;
+    }
 }
 
-function displayResults(data, container) {
-    console.log("Starting displayResults with data:", data);
+// Create results header with legend
+function createResultsHeader() {
+    return `
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2>Enumeration Results</h2>
+            <div class="legend">
+                <span class="me-3"><span class="legend-icon">▶</span> Data available</span>
+                <span class="me-3"><span class="legend-icon">📭</span> No data</span>
+                <span class="me-3"><span class="legend-icon">⚠️</span> Warning</span>
+                <span><span class="legend-icon">🛑</span> Error</span>
+            </div>
+        </div>
+    `;
+}
 
-    function flattenObject(obj, prefix = '') {
-        return Object.keys(obj).reduce((acc, k) => {
-            const pre = prefix.length ? prefix + '.' : '';
-            if (typeof obj[k] === 'object' && obj[k] !== null) {
-                if (Array.isArray(obj[k])) {
-                    acc[pre + k] = JSON.stringify(obj[k]);
-                } else {
-                    Object.assign(acc, flattenObject(obj[k], pre + k));
-                }
-            } else {
-                acc[pre + k] = obj[k];
-            }
-            return acc;
-        }, {});
-    }
 
-    function abbreviateFieldName(name, maxLength = 15) {
-        if (name.length <= maxLength) return name;
-        const parts = name.split(/(?=[A-Z])/);
-        let result = parts[0];
-        for (let i = 1; i < parts.length && result.length < maxLength - 3; i++) {
-            result += parts[i][0];
-        }
-        return result + '...';
-    }
 
-    Object.entries(data).forEach(([endpoint, result], index) => {
-        const sectionDiv = document.createElement('div');
-        sectionDiv.className = 'result-section mb-3';
+// Create error section
+function createErrorSection(endpoint, errorMessage, index) {
+    const sectionDiv = document.createElement('div');
+    sectionDiv.className = 'result-section mb-3';
 
-        const headerBar = document.createElement('div');
-        headerBar.className = 'result-header d-flex align-items-center p-2 bg-light border rounded';
+    const headerBar = createResultHeaderBar(endpoint, index, 'error');
+    setErrorState(headerBar, errorMessage);
 
-        const toggleIcon = document.createElement('span');
-        toggleIcon.className = 'toggle-icon me-2';
-        toggleIcon.innerHTML = '▶';
+    const errorContainer = document.createElement('div');
+    errorContainer.id = `dataTable${index}Container`;
+    errorContainer.className = 'mt-2';
+    errorContainer.style.display = 'none';
+    errorContainer.innerHTML = `<p>${errorMessage}</p>`;
 
-        const headerText = document.createElement('h3');
-        headerText.className = 'm-0 flex-grow-1 text-truncate';
-        headerText.textContent = endpoint;
+    sectionDiv.appendChild(headerBar);
+    sectionDiv.appendChild(errorContainer);
 
+    return sectionDiv;
+}
+
+
+function createResultHeaderBar(endpoint, index, status) {
+    const headerBar = document.createElement('div');
+    headerBar.className = 'result-header d-flex align-items-center p-2 bg-light border rounded';
+
+    const toggleIcon = document.createElement('span');
+    toggleIcon.className = 'toggle-icon me-2';
+    toggleIcon.innerHTML = getStatusIcon(status);
+
+    const headerText = document.createElement('h3');
+    headerText.className = 'm-0 flex-grow-1 text-truncate';
+    headerText.textContent = endpoint;
+
+    headerBar.appendChild(toggleIcon);
+    headerBar.appendChild(headerText);
+
+    if (status === 'success') {
         const buttonGroup = document.createElement('div');
         buttonGroup.className = 'btn-group ms-2';
 
-        const csvButton = createButton('CSV', () => downloadCSV(endpoint, result), 'btn-primary');
-        const jsonButton = createButton('JSON', () => downloadJSON(endpoint, result), 'btn-success');
-        const copyButton = createButton('Copy', () => setTimeout(() => copyToClipboard(`dataTable${index}`), 100), 'btn-outline-secondary');
+        const csvButton = createButton('CSV', () => downloadCSV(endpoint, `dataTable${index}`), 'btn-primary');
+        const jsonButton = createButton('JSON', () => downloadJSON(endpoint, `dataTable${index}`), 'btn-success');
+        const copyButton = createButton('Copy', () => copyToClipboard(`dataTable${index}`), 'btn-outline-secondary');
 
         buttonGroup.appendChild(csvButton);
         buttonGroup.appendChild(jsonButton);
         buttonGroup.appendChild(copyButton);
 
-        headerBar.appendChild(toggleIcon);
-        headerBar.appendChild(headerText);
         headerBar.appendChild(buttonGroup);
+    }
 
-        const tableContainer = document.createElement('div');
-        tableContainer.id = `dataTable${index}Container`;
-        tableContainer.className = 'mt-2';
-        tableContainer.style.display = 'none'; // Ensure table is initially closed
-
-        const table = document.createElement('table');
-        table.id = `dataTable${index}`;
-        table.className = 'display';
-        tableContainer.appendChild(table);
-
-        sectionDiv.appendChild(headerBar);
-        sectionDiv.appendChild(tableContainer);
-        container.appendChild(sectionDiv);
-
-        headerBar.onclick = () => toggleDataTable(`dataTable${index}`);
-
-        let columns = [];
-        let dataSet = [];
-
-        const isDataProperty = (key) => !key.startsWith('@odata') && !key.startsWith('__');
-
-        try {
-            if (result && typeof result === 'object' && 'value' in result) {
-                if (Array.isArray(result.value)) {
-                    dataSet = result.value.map(item => flattenObject(item));
-                } else if (typeof result.value === 'string') {
-                    try {
-                        dataSet = JSON.parse(result.value).map(item => flattenObject(item));
-                    } catch (e) {
-                        console.error("Failed to parse value as JSON", e);
-                        dataSet = [{ value: result.value }];
-                    }
-                } else if (typeof result.value === 'object') {
-                    dataSet = [flattenObject(result.value)];
-                }
-            } else if (Array.isArray(result)) {
-                dataSet = result.map(item => flattenObject(item));
-            } else if (typeof result === 'object' && result !== null) {
-                dataSet = [flattenObject(result)];
-            } else {
-                dataSet = [{ value: result }];
-            }
-
-            if (dataSet.length > 0) {
-                columns = Object.keys(dataSet[0])
-                    .filter(isDataProperty)
-                    .map(key => ({
-                        title: abbreviateFieldName(key),
-                        data: key,
-                        render: function(data, type) {
-                            if (type === 'display') {
-                                const stringValue = data != null ? String(data) : '';
-                                if (stringValue.length > 50) {
-                                    return stringValue.substring(0, 47) + '... <a href="#" class="show-more">Show more</a>';
-                                }
-                                return stringValue;
-                            }
-                            return data;
-                        }
-                    }));
-            }
-
-            console.log("Columns:", columns);
-            console.log("DataSet:", dataSet);
-
-            if (columns.length === 0 || dataSet.length === 0) {
-                throw new Error("No valid data structure found");
-            }
-
-            const $table = jQuery(`#dataTable${index}`);
-
-
-            // Initialize DataTable
-            const dataTable = $table.DataTable({
-                data: dataSet,
-                columns: columns,
-                pageLength: 10,
-                lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "All"]],
-                scrollX: true,
-                autoWidth: false,
-                initComplete: function(settings, json) {
-                    $table.css('font-size', '14px');
-
-                    // Add unique id and name attributes to form fields
-                    $table.find('input, select, textarea').each(function(i, el) {
-                        el.id = `${el.id || 'formField'}_${index}_${i}`;
-                        el.name = `${el.name || 'formField'}_${index}_${i}`;
-                    });
-                },
-                error: function(settings, helpPage, message) {
-                    console.error(`DataTables error: ${message}`);
-                }
-            });
-
-
-            // Add event listener for "Show more" links
-            $table.on('click', 'a.show-more', function(e) {
-                e.preventDefault();
-                const tr = $(this).closest('tr');
-                const row = dataTable.row(tr);
-                if (row.child.isShown()) {
-                    row.child.hide();
-                    tr.removeClass('shown');
-                } else {
-                    const rowData = row.data();
-                    const fullContent = `<pre>${JSON.stringify(rowData, null, 2)}</pre>`;
-                    row.child(fullContent).show();
-                    tr.addClass('shown');
-                }
-            });
-
-
-            console.log(`DataTable initialized for ${endpoint}`);
-        } catch (error) {
-            console.error(`Error processing endpoint ${endpoint}:`, error);
-            tableContainer.innerHTML = `<p>Error processing data for this endpoint: ${error.message}</p>`;
-            tableContainer.style.display = 'block';
+    headerBar.onclick = (event) => {
+        // Prevent toggling when clicking on buttons
+        if (!event.target.closest('.btn-group')) {
+            toggleDataTable(`dataTable${index}`);
         }
-    });
+    };
+
+    return headerBar;
+}
+
+// Get status icon based on the status
+function getStatusIcon(status) {
+    switch (status) {
+        case 'success':
+            return '▶';
+        case 'empty':
+            return '📭'; // Empty mailbox emoji
+        case 'warning':
+            return '⚠️'; // Warning sign
+        case 'error':
+            return '🛑'; // Stop sign
+        default:
+            return '▶';
+    }
 }
 
 
+
+// Display enumeration results
+function displayEnumerationResults(data) {
+    const resultsDiv = document.getElementById(RESULTS_DIV_ID);
+    resultsDiv.innerHTML = '<h2>Enumeration Results</h2>';
+
+    Object.entries(data).forEach(([endpoint, result], index) => {
+        const sectionDiv = createResultSection(endpoint, result, index);
+        resultsDiv.appendChild(sectionDiv);
+    });
+}
+
+// Create result section
+function getResultStatus(result) {
+    console.log("Result:", result); // Debugging log
+    if (result.error) return 'error';
+    if (result.warning) return 'warning';
+
+    if (result['@odata.context'] && Array.isArray(result.value)) {
+        return result.value.length > 0 ? 'success' : 'empty';
+    }
+
+    return 'empty';
+}
+
+// Create result section
+function createResultSection(endpoint, result, index, status) {
+    console.log(`Creating section for ${endpoint} with status ${status}`); // Debugging log
+    const sectionDiv = document.createElement('div');
+    sectionDiv.className = 'result-section mb-3';
+
+    const headerBar = createResultHeaderBar(endpoint, index, status);
+    sectionDiv.appendChild(headerBar);
+
+    const contentContainer = document.createElement('div');
+    contentContainer.id = `dataTable${index}Container`;
+    contentContainer.className = 'mt-2';
+    contentContainer.style.display = 'none';
+
+    switch (status) {
+        case 'success':
+            contentContainer.innerHTML = '<table id="dataTable' + index + '" class="display"></table>';
+            sectionDiv.appendChild(contentContainer);
+            setTimeout(() => initializeDataTable(result.value, index, headerBar), 0);
+            break;
+        case 'empty':
+            contentContainer.innerHTML = '<p>No data available for this endpoint.</p>';
+            sectionDiv.appendChild(contentContainer);
+            break;
+        case 'warning':
+            contentContainer.innerHTML = `<p>Warning: ${result.warning}</p>`;
+            sectionDiv.appendChild(contentContainer);
+            break;
+        case 'error':
+            contentContainer.innerHTML = `<p>Error: ${result.error}</p>`;
+            sectionDiv.appendChild(contentContainer);
+            break;
+    }
+
+    return sectionDiv;
+}
+
+
+
+
+
+// Initialize DataTable
+function initializeDataTable(data, index, headerBar) {
+    console.log("Initializing DataTable with data:", data); // Debugging log
+    const tableId = `dataTable${index}`;
+    const $table = jQuery(`#${tableId}`);
+
+    if ($table.length === 0) {
+        console.error(`Table with id ${tableId} not found`);
+        setErrorState(headerBar, `Table with id ${tableId} not found`);
+        return;
+    }
+
+    try {
+        const [columns, dataSet] = prepareDataForTable(data);
+
+        if (columns.length === 0 || dataSet.length === 0) {
+            throw new Error("No valid data structure found");
+        }
+
+        const dataTable = $table.DataTable({
+            data: dataSet,
+            columns: columns,
+            pageLength: 10,
+            lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "All"]],
+            scrollX: true,
+            autoWidth: false,
+            initComplete: function(settings, json) {
+                $table.css('font-size', '14px');
+                addUniqueIdsToFormFields($table, index);
+            }
+        });
+
+        addShowMoreEventListener($table, dataTable);
+
+    } catch (error) {
+        console.error(`Error processing data for table ${tableId}:`, error);
+        const errorMessage = `Error processing data for this endpoint: ${error.message}`;
+        document.getElementById(`${tableId}Container`).innerHTML = `<p>${errorMessage}</p>`;
+        setErrorState(headerBar, errorMessage);
+    }
+}
+
+
+
+
+function setErrorState(headerBar, errorMessage) {
+    headerBar.classList.add('error');
+    const toggleIcon = headerBar.querySelector('.toggle-icon');
+    if (toggleIcon) {
+        toggleIcon.innerHTML = '⚠️';  // Warning icon
+    }
+    headerBar.title = errorMessage;  // Add error message as tooltip
+}
+
+// Prepare data for table
+function prepareDataForTable(data) {
+    console.log("Preparing data for table:", data); // Debugging log
+    let dataSet = [];
+
+    if (Array.isArray(data)) {
+        dataSet = data.map(item => flattenObject(item));
+    } else if (typeof data === 'object' && data !== null) {
+        dataSet = [flattenObject(data)];
+    } else {
+        dataSet = [{ value: data }];
+    }
+
+    const columns = dataSet.length > 0 ? Object.keys(dataSet[0])
+        .filter(key => !key.startsWith('@odata') && !key.startsWith('__'))
+        .map(key => ({
+            title: abbreviateFieldName(key),
+            data: key,
+            render: renderTableCell
+        })) : [];
+
+    return [columns, dataSet];
+}
+
+
+// Create result table container
+function createResultTableContainer(index) {
+    const tableContainer = document.createElement('div');
+    tableContainer.id = `dataTable${index}Container`;
+    tableContainer.className = 'mt-2';
+    tableContainer.style.display = 'none';
+
+    const table = document.createElement('table');
+    table.id = `dataTable${index}`;
+    table.className = 'display';
+    tableContainer.appendChild(table);
+
+    return tableContainer;
+}
+
+// Flatten object
 function flattenObject(obj, prefix = '') {
     return Object.keys(obj).reduce((acc, k) => {
         const pre = prefix.length ? prefix + '.' : '';
@@ -580,51 +762,83 @@ function flattenObject(obj, prefix = '') {
     }, {});
 }
 
+// Abbreviate field name
+function abbreviateFieldName(name, maxLength = 15) {
+    if (name.length <= maxLength) return name;
+    const parts = name.split(/(?=[A-Z])/);
+    let result = parts[0];
+    for (let i = 1; i < parts.length && result.length < maxLength - 3; i++) {
+        result += parts[i][0];
+    }
+    return result + '...';
+}
 
+// Render table cell
+function renderTableCell(data, type) {
+    if (type === 'display') {
+        const stringValue = data != null ? String(data) : '';
+        if (stringValue.length > 50) {
+            return stringValue.substring(0, 47) + '... <a href="#" class="show-more">Show more</a>';
+        }
+        return stringValue;
+    }
+    return data;
+}
+
+// Add unique IDs to form fields
+function addUniqueIdsToFormFields($table, index) {
+    $table.find('input, select, textarea').each(function(i, el) {
+        el.id = `${el.id || 'formField'}_${index}_${i}`;
+        el.name = `${el.name || 'formField'}_${index}_${i}`;
+    });
+}
+
+// Add "Show more" event listener
+function addShowMoreEventListener($table, dataTable) {
+    $table.on('click', 'a.show-more', function(e) {
+        e.preventDefault();
+        const tr = $(this).closest('tr');
+        const row = dataTable.row(tr);
+        if (row.child.isShown()) {
+            row.child.hide();
+            tr.removeClass('shown');
+        } else {
+            const rowData = row.data();
+            const fullContent = `<pre>${JSON.stringify(rowData, null, 2)}</pre>`;
+            row.child(fullContent).show();
+            tr.addClass('shown');
+        }
+    });
+}
+
+// Create button
 function createButton(text, onClick, colorClass) {
     const button = document.createElement('button');
-    button.className = `btn btn-sm ${colorClass} me-2`; // Added me-2 for margin
+    button.className = `btn btn-sm ${colorClass} me-2`;
     button.textContent = text;
     button.onclick = (e) => {
-        e.stopPropagation(); // Prevent event from bubbling up
+        e.stopPropagation();
         onClick();
     };
     return button;
 }
 
-function downloadJSON(endpoint, data) {
-    const jsonData = data.value ? { value: data.value } : data;
+// Download JSON
+function downloadJSON(endpoint, tableId) {
+    const table = jQuery(`#${tableId}`).DataTable();
+    const jsonData = { value: table.data().toArray() };
     const jsonString = JSON.stringify(jsonData, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
-    const link = document.createElement('a');
-    if (link.download !== undefined) {
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', `${endpoint.replace(/\//g, '_')}_output.json`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
+    downloadBlob(blob, `${endpoint.replace(/\//g, '_')}_output.json`);
 }
 
-function downloadCSV(endpoint, data) {
-    let csvContent = '';
-    let flattenedData = [];
+// Download CSV
+function downloadCSV(endpoint, tableId) {
+    const table = jQuery(`#${tableId}`).DataTable();
+    const headers = table.columns().header().toArray().map(header => header.textContent);
+    let csvContent = headers.join(",") + "\r\n";
 
-    if (Array.isArray(data.value)) {
-        flattenedData = data.value.map(item => flattenObject(item));
-    } else if (typeof data === 'object') {
-        flattenedData = [flattenObject(data)];
-    } else {
-        console.error('Unexpected data structure');
-        return;
-    }
-
-    const headers = Object.keys(flattenedData[0]).filter(key => !key.startsWith('@odata'));
-
-    csvContent += headers.join(",") + "\r\n";
-    flattenedData.forEach(function(row) {
+    table.data().toArray().forEach(function(row) {
         let rowContent = headers.map(header => {
             let cellContent = row[header] || '';
             if (typeof cellContent === 'object') {
@@ -637,11 +851,16 @@ function downloadCSV(endpoint, data) {
     });
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
+    downloadBlob(blob, `${endpoint.replace(/\//g, '_')}.csv`);
+}
+
+// Download blob
+function downloadBlob(blob, filename) {
+    const link = document.createElement('a');
     if (link.download !== undefined) {
         const url = URL.createObjectURL(blob);
-        link.setAttribute("href", url);
-        link.setAttribute("download", `${endpoint.replace(/\//g, '_')}.csv`);
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
@@ -649,16 +868,13 @@ function downloadCSV(endpoint, data) {
     }
 }
 
-
+// Copy to clipboard
 function copyToClipboard(tableId) {
-    const table = $(`#${tableId}`).DataTable();
-
-    // Get visible columns
+    const table = jQuery(`#${tableId}`).DataTable();
     const visibleColumns = table.columns().indexes().filter(function(value, index) {
         return table.column(value).visible();
     });
 
-    // Create CSV content
     const csvContent = visibleColumns.map(function(colIndex) {
         return table.column(colIndex).header().textContent;
     }).join(',') + '\n' +
@@ -674,7 +890,7 @@ function copyToClipboard(tableId) {
     }).join('\n');
 
     navigator.clipboard.writeText(csvContent).then(() => {
-        const copyBtn = $(`#${tableId}`).closest('.result-section').find('button:contains("Copy")');
+        const copyBtn = jQuery(`#${tableId}`).closest('.result-section').find('button:contains("Copy")');
         const originalText = copyBtn.text();
         copyBtn.text('Copied!');
         setTimeout(() => {
@@ -685,29 +901,23 @@ function copyToClipboard(tableId) {
     });
 }
 
+// Toggle data table visibility
+// Toggle data table visibility
+function toggleDataTable(tableId) {
+    const tableContainer = document.getElementById(`${tableId}Container`);
+    if (tableContainer) {
+        tableContainer.style.display = tableContainer.style.display === 'none' ? 'block' : 'none';
+    }
+}
+
+// Update current time
 function updateCurrentTime() {
-    const currentTimeElement = document.getElementById('currentTime');
+    const currentTimeElement = document.getElementById(CURRENT_TIME_ID);
     if (currentTimeElement) {
         const now = new Date();
         currentTimeElement.textContent = now.toUTCString();
     }
 }
 
-function toggleDataTable(tableId) {
-    const tableContainer = document.getElementById(`${tableId}Container`);
-    const headerBar = tableContainer.previousElementSibling;
-    const toggleIcon = headerBar.querySelector('.toggle-icon');
-
-    if (tableContainer.style.display === 'none') {
-        tableContainer.style.display = 'block';
-        toggleIcon.innerHTML = '▼';
-    } else {
-        tableContainer.style.display = 'none';
-        toggleIcon.innerHTML = '▶';
-    }
-}
-
-// Utility function to capitalize the first letter of a string
-String.prototype.capitalize = function() {
-    return this.charAt(0).toUpperCase() + this.slice(1);
-};
+// Initialize the application
+initializeApp();
