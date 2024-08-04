@@ -112,10 +112,13 @@ def enumerate_graph():
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
+            error_message = str(e)
+            status_code = e.response.status_code if e.response else None
+            response_text = e.response.text if e.response else None
             return {
-                "error": f"Failed to fetch data: {str(e)}",
-                "status_code": e.response.status_code if e.response else None,
-                "response_text": e.response.text if e.response else None
+                "error": f"Failed to fetch data: {error_message}",
+                "status_code": status_code,
+                "response_text": response_text
             }
 
     def get_nested_endpoint(data, keys):

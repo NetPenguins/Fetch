@@ -35,8 +35,20 @@ def insert_token(token):
 
                 oid = decoded.get('oid', 'Unknown')
                 audience = decoded.get('aud', 'Unknown')
-                email = decoded.get('unique_name', 'Unknown')
-                scp = decoded.get('scp', 'Unknown')
+
+                # Check if it's an app or user token
+                idtyp = decoded.get('idtyp', '').lower()
+
+                if idtyp == 'app':
+                    # For app tokens, use app_displayname and roles as scp
+                    email_or_appname = decoded.get('app_displayname', 'Unknown App')
+                    scp = ' '.join(decoded.get('roles', []))
+                else:
+                    # For user tokens, use email and scp (or roles if scp is not available)
+                    email_or_appname = decoded.get('unique_name', 'Unknown')
+                    scp = decoded.get('scp', '')
+                    if not scp:
+                        scp = ' '.join(decoded.get('roles', []))
 
                 conn = get_db_connection()
                 cursor = conn.cursor()
@@ -49,7 +61,7 @@ def insert_token(token):
 
                 conn.execute(
                     'INSERT INTO access_tokens (token, oid, audience, expiration, email, scp, token_type) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                    (token, oid, audience, expiration, email, scp, token_type))
+                    (token, oid, audience, expiration, email_or_appname, scp, token_type))
                 conn.commit()
                 conn.close()
             except jwt.exceptions.DecodeError:
