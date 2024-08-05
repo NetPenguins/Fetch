@@ -1,0 +1,298 @@
+{% extends "base.html" %}
+{% block title %}Fetch - Guides{% endblock %}
+{% block content %}
+
+<div class="row">
+  <div class="col-md-6">
+    <div class="accordion accordion-sm" id="tokenGuides">
+      <h2 class="h4 mb-3">Access Token Generation</h2>
+
+      <!-- PowerShell Az Guide -->
+      <div class="accordion-item">
+        <h3 class="accordion-header" id="headingPowerShellAz">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePowerShellAz" aria-expanded="false" aria-controls="collapsePowerShellAz">
+            PowerShell Az Module
+          </button>
+        </h3>
+        <div id="collapsePowerShellAz" class="accordion-collapse collapse" aria-labelledby="headingPowerShellAz" data-bs-parent="#tokenGuides">
+          <div class="accordion-body">
+            <ol class="small">
+              <li>Install the Az module if not already installed:</li>
+            </ol>
+            <div class="code-block-container">
+              <pre><code class="language-powershell" id="powershell-az-1">Install-Module -Name Az -AllowClobber -Scope CurrentUser</code></pre>
+              <button class="btn btn-sm btn-outline-secondary copy-btn" data-clipboard-target="#powershell-az-1">Copy</button>
+            </div>
+            <ol start="2" class="small">
+              <li>Connect to your Azure account:</li>
+            </ol>
+            <div class="code-block-container">
+              <pre><code class="language-powershell" id="powershell-az-2">Connect-AzAccount</code></pre>
+              <button class="btn btn-sm btn-outline-secondary copy-btn" data-clipboard-target="#powershell-az-2">Copy</button>
+            </div>
+            <ol start="3" class="small">
+              <li>Get the access token:</li>
+            </ol>
+            <div class="code-block-container">
+              <pre><code class="language-powershell" id="powershell-az-3">$token = Get-AzAccessToken -ResourceUrl "https://graph.microsoft.com/"
+$accessToken = $token.Token</code></pre>
+              <button class="btn btn-sm btn-outline-secondary copy-btn" data-clipboard-target="#powershell-az-3">Copy</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Azure CLI Guide -->
+      <div class="accordion-item">
+        <h3 class="accordion-header" id="headingAzureCLI">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAzureCLI" aria-expanded="false" aria-controls="collapseAzureCLI">
+            Azure CLI
+          </button>
+        </h3>
+        <div id="collapseAzureCLI" class="accordion-collapse collapse" aria-labelledby="headingAzureCLI" data-bs-parent="#tokenGuides">
+          <div class="accordion-body">
+            <ol class="small">
+              <li>Open a terminal or command prompt</li>
+              <li>Run the following command:</li>
+            </ol>
+            <div class="code-block-container">
+              <pre><code class="language-bash" id="azure-cli">az account get-access-token --query accessToken --output tsv</code></pre>
+              <button class="btn btn-sm btn-outline-secondary copy-btn" data-clipboard-target="#azure-cli">Copy</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Azure Instance Metadata Service Guide -->
+      <div class="accordion-item">
+        <h3 class="accordion-header" id="headingMetadataService">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMetadataService" aria-expanded="false" aria-controls="collapseMetadataService">
+            Azure Instance Metadata Service (IMDS)
+          </button>
+        </h3>
+        <div id="collapseMetadataService" class="accordion-collapse collapse" aria-labelledby="headingMetadataService" data-bs-parent="#tokenGuides">
+          <div class="accordion-body">
+            <ol class="small">
+              <li>This method only works from within an Azure VM or other Azure compute resource.</li>
+              <li>Open a terminal or command prompt</li>
+              <li>Run the following curl command:</li>
+            </ol>
+            <div class="code-block-container">
+              <pre><code class="language-bash" id="metadata-service">curl -H Metadata:true "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://graph.microsoft.com/" | jq -r '.access_token'</code></pre>
+              <button class="btn btn-sm btn-outline-secondary copy-btn" data-clipboard-target="#metadata-service">Copy</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="accordion accordion-sm" id="appConfigGuides">
+      <h2 class="h4 mb-3">App Configuration</h2>
+
+    <!-- Client Secret Guide -->
+    <div class="accordion-item">
+      <h3 class="accordion-header" id="headingClientSecret">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseClientSecret" aria-expanded="false" aria-controls="collapseClientSecret">
+          Add Client Secret
+        </button>
+      </h3>
+      <div id="collapseClientSecret" class="accordion-collapse collapse" aria-labelledby="headingClientSecret" data-bs-parent="#appConfigGuides">
+        <div class="accordion-body">
+          <ol class="small">
+            <li>Go to the Azure Portal (portal.azure.com)</li>
+            <li>Navigate to Azure Active Directory</li>
+            <li>Select "App registrations" from the left menu</li>
+            <li>Find and select your application</li>
+            <li>In the left menu, click on "Certificates & secrets"</li>
+            <li>Under "Client secrets", click "New client secret"</li>
+            <li>Enter a description and select an expiration period</li>
+            <li>Click "Add"</li>
+            <li>Copy and securely store the generated secret value</li>
+          </ol>
+          <p class="small">Note: The secret value is only shown once. Make sure to copy and store it securely.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Certificate Guide -->
+    <div class="accordion-item">
+      <h3 class="accordion-header" id="headingCertificate">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCertificate" aria-expanded="false" aria-controls="collapseCertificate">
+          Add Certificate
+        </button>
+      </h3>
+      <div id="collapseCertificate" class="accordion-collapse collapse" aria-labelledby="headingCertificate" data-bs-parent="#appConfigGuides">
+        <div class="accordion-body">
+          <ol class="small">
+            <li>Generate a self-signed certificate or obtain one from a trusted Certificate Authority</li>
+            <li>Go to the Azure Portal (portal.azure.com)</li>
+            <li>Navigate to Azure Active Directory</li>
+            <li>Select "App registrations" from the left menu</li>
+            <li>Find and select your application</li>
+            <li>In the left menu, click on "Certificates & secrets"</li>
+            <li>Under "Certificates", click "Upload certificate"</li>
+            <li>Browse and select your certificate file</li>
+            <li>Click "Add"</li>
+          </ol>
+          <p class="small">Note: Ensure you have the private key of the certificate for authentication purposes.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Implicit Grant Authentication Guide -->
+    <div class="accordion-item">
+      <h3 class="accordion-header" id="headingImplicitGrant">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseImplicitGrant" aria-expanded="false" aria-controls="collapseImplicitGrant">
+          Configure Implicit Grant and Redirect URL
+        </button>
+      </h3>
+      <div id="collapseImplicitGrant" class="accordion-collapse collapse" aria-labelledby="headingImplicitGrant" data-bs-parent="#appConfigGuides">
+        <div class="accordion-body">
+          <ol class="small">
+            <li>Go to the Azure Portal (portal.azure.com)</li>
+            <li>Navigate to Azure Active Directory</li>
+            <li>Select "App registrations" from the left menu</li>
+            <li>Find and select your application</li>
+            <li>In the left menu, click on "Authentication"</li>
+            <li>Under "Platform configurations", click "Add a platform"</li>
+            <li>Select "Single-page application"</li>
+            <li>Enter your redirect URL (e.g., https://yourapp.com/auth-callback)</li>
+            <li>Click "Configure"</li>
+            <li>Under "Implicit grant and hybrid flows", check the boxes for:</li>
+              <ul>
+                <li>Access tokens (used for implicit flows)</li>
+                <li>ID tokens (used for implicit and hybrid flows)</li>
+              </ul>
+            <li>Click "Save" at the top of the page</li>
+          </ol>
+          <p class="small">For use in the token action, you'll need to copy:</p>
+          <ul class="small">
+            <li>Tenant ID: Found in Azure Active Directory > Overview</li>
+            <li>Client ID: Found in App registrations > Your app > Overview</li>
+            <li>Redirect URI: The URL you just configured</li>
+          </ul>
+          <p class="small">Note: Implicit grant flow is not recommended for production applications due to security concerns. Consider using authorization code flow with PKCE for better security.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+  <div class="col-md-6">
+    <div class="accordion accordion-sm" id="permissionGuides">
+      <h2 class="h4 mb-3">Access and Permissions</h2>
+
+      <!-- Grant Permissions Guide -->
+      <div class="accordion-item">
+        <h3 class="accordion-header" id="headingGrantPermissions">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseGrantPermissions" aria-expanded="false" aria-controls="collapseGrantPermissions">
+            Grant API Permissions
+          </button>
+        </h3>
+        <div id="collapseGrantPermissions" class="accordion-collapse collapse" aria-labelledby="headingGrantPermissions" data-bs-parent="#permissionGuides">
+          <div class="accordion-body">
+            <h4 class="h6">For an Application:</h4>
+            <ol class="small">
+              <li>Go to the Azure Portal (portal.azure.com)</li>
+              <li>Navigate to Azure Active Directory</li>
+              <li>Select "App registrations" from the left menu</li>
+              <li>Find and select your application</li>
+              <li>In the left menu, click on "API permissions"</li>
+              <li>Click "Add a permission"</li>
+              <li>Select "Microsoft Graph"</li>
+              <li>Choose between "Delegated permissions" or "Application permissions" based on your needs</li>
+              <li>Search for and select the required permissions (e.g., Directory.Read.All, User.Read.All)</li>
+              <li>Click "Add permissions"</li>
+              <li>If you added Application permissions, click "Grant admin consent for [Your Tenant]"</li>
+            </ol>
+            <h4 class="h6">For a User (Admin Consent):</h4>
+            <ol class="small">
+              <li>Go to the Azure Portal (portal.azure.com)</li>
+              <li>Navigate to Azure Active Directory</li>
+              <li>Select "Enterprise applications" from the left menu</li>
+              <li>Find and select your application</li>
+              <li>In the left menu, click on "Permissions"</li>
+              <li>Click "Grant admin consent for [Your Tenant]"</li>
+              <li>Review the permissions and click "Accept"</li>
+            </ol>
+            <p class="small">Note: Granting admin consent applies the permissions to all users in your organization who use this application.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Required Permissions Guide -->
+      <div class="accordion-item">
+        <h3 class="accordion-header" id="headingRequiredPermissions">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseRequiredPermissions" aria-expanded="false" aria-controls="collapseRequiredPermissions">
+            Required Permissions for This App
+          </button>
+        </h3>
+        <div id="collapseRequiredPermissions" class="accordion-collapse collapse" aria-labelledby="headingRequiredPermissions" data-bs-parent="#permissionGuides">
+          <div class="accordion-body">
+            <p class="small">The following permissions are required for full functionality of this app:</p>
+            <ul class="small">
+              <li>Directory.Read.All</li>
+              <li>Policy.Read.All</li>
+              <li>IdentityProvider.Read.All</li>
+              <li>Organization.Read.All</li>
+              <li>User.Read.All</li>
+              <li>EntitlementManagement.Read.All</li>
+              <li>UserAuthenticationMethod.Read.All</li>
+              <li>IdentityUserFlow.Read.All</li>
+              <li>APIConnectors.Read.All</li>
+              <li>AccessReview.Read.All</li>
+              <li>Agreement.Read.All</li>
+              <li>Policy.Read.PermissionGrant</li>
+              <li>PrivilegedAccess.Read.AzureResources</li>
+              <li>PrivilegedAccess.Read.AzureAD</li>
+              <li>Application.Read.All</li>
+            </ul>
+            <p class="small">Ensure these permissions are granted using the "Grant API Permissions" guide above.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/components/prism-powershell.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/components/prism-bash.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.8/clipboard.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', (event) => {
+    const clipboard = new ClipboardJS('.copy-btn', {
+      target: function(trigger) {
+        return trigger.previousElementSibling.querySelector('code');
+      }
+    });
+
+    clipboard.on('success', function(e) {
+      const button = e.trigger;
+      const originalText = button.textContent;
+      button.textContent = 'Copied!';
+      setTimeout(() => {
+        button.textContent = originalText;
+      }, 2000);
+      e.clearSelection();
+    });
+
+    clipboard.on('error', function(e) {
+      console.error('Action:', e.action);
+      console.error('Trigger:', e.trigger);
+    });
+  });
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/themes/prism.min.css">
+{% endblock %}

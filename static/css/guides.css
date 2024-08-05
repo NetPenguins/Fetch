@@ -1,0 +1,120 @@
+/* General styles */
+body {
+  font-size: 14px;
+}
+
+/* Layout */
+@media (min-width: 768px) {
+  .col-md-4 {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+}
+
+/* Accordion styles */
+.accordion-sm {
+  font-size: 0.9rem;
+  margin-bottom: 20px;
+}
+
+.accordion-sm .accordion-button {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.95rem;
+}
+
+.accordion-sm .accordion-body {
+  padding: 0.75rem;
+}
+
+.accordion-button:not(.collapsed) {
+  background-color: #e7f1ff;
+  color: #0c63e4;
+}
+
+.accordion-button:focus {
+  box-shadow: none;
+  border-color: rgba(0,0,0,.125);
+}
+
+/* Code block styles */
+.code-block-container {
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.code-block-container pre {
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 0.5rem;
+  margin-bottom: 0;
+  font-size: 0.8rem;
+}
+
+.copy-btn {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+  padding: 0.1rem 0.3rem;
+  font-size: 0.7rem;
+}
+
+/* Typography */
+.small {
+  font-size: 0.85rem;
+}
+
+h1.h3, h2.h4, h3.h5, h4.h6 {
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+ol.small, ul.small {
+  padding-left: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+code {
+  font-family: SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace;
+  font-size: 85%;
+  color: #d63384;
+  word-wrap: break-word;
+}
+
+/* Custom styles for specific elements */
+.accordion-sm .accordion-body ol > li,
+.accordion-sm .accordion-body ul > li {
+  margin-bottom: 0.25rem;
+}
+
+.accordion-sm .accordion-body p:last-child {
+  margin-bottom: 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 767px) {
+  .accordion-sm {
+    margin-bottom: 15px;
+  }
+
+  .accordion-sm .accordion-button {
+    font-size: 0.9rem;
+  }
+
+  .code-block-container pre {
+    font-size: 0.75rem;
+  }
+}
+
+/* Prism.js overrides (if you're using Prism for syntax highlighting) */
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+}
+
+code[class*="language-"],
+pre[class*="language-"] {
+  font-size: 0.8rem;
+}
