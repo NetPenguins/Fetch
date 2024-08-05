@@ -74,6 +74,13 @@ def request_token_password():
         }), 400
 
 
+@app.route('/guides')
+def guides():
+    current_time = aware_utcnow()
+    return render_template('guides.html', current_time=current_time)
+
+
+
 @app.route('/graph_enumerator')
 def graph_enumerator():
     conn = get_db_connection()
