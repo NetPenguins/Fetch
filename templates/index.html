@@ -9,15 +9,15 @@
 {% block navbar_extra %}
 <li class="nav-item dropdown">
     <a class="nav-link dropdown-toggle" href="#" id="requestTokenDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-        Request Token
+        Token Actions
     </a>
     <ul class="dropdown-menu" aria-labelledby="requestTokenDropdown">
         <li><a class="dropdown-item" href="#" onclick="showSection('insertToken')">Insert Token</a></li>
+        <li><a class="dropdown-item" href="#" onclick="showSection('deviceCodeAuth')">Device Code Auth</a></li>
         <li><a class="dropdown-item" href="#" onclick="showSection('requestTokenPassword')">Request Token with Password</a></li>
         <li><a class="dropdown-item" href="#" onclick="showSection('requestTokenSecret')">Request Token with Client Secret</a></li>
         <li><a class="dropdown-item" href="#" onclick="showSection('requestTokenCertificate')">Request Token with Certificate</a></li>
-        <li><a class="dropdown-item" href="#" onclick="showSection('authenticate')">Authenticate</a></li>
-        <li><a class="dropdown-item" href="#" onclick="showSection('deviceCodeAuth')">Device Code Auth</a></li>
+        <li><a class="dropdown-item" href="#" onclick="showSection('authenticate')">Implicit Grant Auth</a></li>
     </ul>
 </li>
 {% endblock %}
@@ -210,20 +210,37 @@
             </div>
             <button type="submit" class="btn btn-primary">Request Token</button>
         </form>
-    </div>
+</div>
 
-    <div id="authenticate" class="action-section" style="display:none;">
-        <h4>Implicit Grant Auth</h4>
-        <form id="authenticateForm">
-            <div class="form-group">
-                <input type="text" id="authClientId" class="form-control token-input" placeholder="Client ID" required>
-            </div>
-            <div class="form-group">
-                <input type="text" id="authTenantId" class="form-control token-input" placeholder="Tenant ID" required>
-            </div>
-            <button type="submit" class="btn btn-primary">Authenticate</button>
-        </form>
-    </div>
+<div id="authenticate" class="action-section" style="display:none;">
+    <h4>Implicit Grant Auth</h4>
+    <form id="authenticateForm">
+        <div class="form-group">
+            <input type="text" id="authClientId" class="form-control token-input" placeholder="Client ID" required>
+        </div>
+        <div class="form-group">
+            <input type="text" id="authTenantId" class="form-control token-input" placeholder="Tenant ID" required>
+        </div>
+        <div class="form-group">
+           <input type="text" id="authRedirectUri" class="form-control token-input" placeholder="Redirect URI" required value="https://127.0.0.1:5000/admin_consent_callback">
+        </div>
+        <div class="form-group">
+            <input type="text" id="authScope" class="form-control token-input" placeholder="Scope (e.g., openid profile email)" required value="openid profile email">
+        </div>
+        <div class="form-group">
+            <select id="authResponseType" class="form-control token-input" required>
+                <option value="id_token">ID Token</option>
+                <option value="id_token token">ID Token + Access Token</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <input type="text" id="authState" class="form-control token-input" placeholder="State (optional)">
+        </div>
+        <div class="form-group">
+            <input type="text" id="authNonce" class="form-control token-input" placeholder="Nonce (optional)">
+        </div>
+        <button type="submit" class="btn btn-primary">Authenticate</button>
+    </form>
 </div>
 
 <div id="tokenDetails" class="mt-4" style="display:none;">

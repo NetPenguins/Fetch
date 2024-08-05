@@ -488,16 +488,20 @@ function handleAuthenticate(e) {
     e.preventDefault();
     const clientId = document.getElementById('authClientId').value;
     const tenantId = document.getElementById('authTenantId').value;
-    fetch(`/request_auth?client_id=${encodeURIComponent(clientId)}&tenant_id=${encodeURIComponent(tenantId)}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.auth_url) {
-                window.open(data.auth_url, '_blank');
-            } else {
-                alert('Failed to generate authentication URL');
-            }
-        })
-        .catch(() => alert('Failed to initiate authentication'));
+    const redirectUri = encodeURIComponent('https://127.0.0.1:5000/admin_consent_callback');
+    const scope = encodeURIComponent('openid profile email');
+    const responseType = 'id_token token';
+    const nonce = Math.random().toString(36).substring(2, 15);
+
+    const authUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?` +
+        `client_id=${clientId}` +
+        `&response_type=${responseType}` +
+        `&redirect_uri=${redirectUri}` +
+        `&scope=${scope}` +
+        `&response_mode=fragment` +
+        `&nonce=${nonce}`;
+
+    window.location.href = authUrl;
 }
 
 function refreshTokenTable() {
