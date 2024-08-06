@@ -9,27 +9,29 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="/">Fetch</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav">
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" href="{{ url_for('index') }}">Home</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'graph_enumerator' %}active{% endif %}" href="{{ url_for('graph_enumerator') }}">Graph Enumerator</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'db_analyzer' %}active{% endif %}" href="{{ url_for('db_analyzer') }}">DB Analyzer</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'guides' %}active{% endif %}" href="{{ url_for('guides') }}">Guides</a>
-                    </li>
-                    <li class="nav-item dropdown">
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container-fluid">
+        <a class="navbar-brand fw-bold" href="/">
+            Fetch
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" href="{{ url_for('index') }}">Home</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'graph_enumerator' %}active{% endif %}" href="{{ url_for('graph_enumerator') }}">Graph Enumerator</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'db_analyzer' %}active{% endif %}" href="{{ url_for('db_analyzer') }}">DB Analyzer</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'guides' %}active{% endif %}" href="{{ url_for('guides') }}">Guides</a>
+                </li>
+                <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" id="tokenActionsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                         Token Actions
                     </a>
@@ -42,13 +44,14 @@
                         <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#implicitGrantAuthModal">Implicit Grant Auth</a></li>
                     </ul>
                 </li>
-                </ul>
-                <span class="navbar-text" id="currentTime">
-                    {{ current_time.strftime('%Y-%m-%d %H:%M:%S UTC') }}
-                </span>
-            </div>
+            </ul>
+            <span class="navbar-text text-light" id="currentTime">
+                {{ current_time.strftime('%Y-%m-%d %H:%M:%S UTC') }}
+            </span>
         </div>
-    </nav>
+    </div>
+</nav>
+
 
     <div class="container mt-4">
         {% block content %}{% endblock %}
