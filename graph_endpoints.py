@@ -164,7 +164,8 @@ GRAPH_ENDPOINTS = {
                 "applicationPermission": "Policy.Read.All"
             },
             "microsoftAuthenticator": {
-                "path": "/policies/authenticationMethodsPolicy/authenticationMethodConfigurations/microsoftAuthenticator",
+                "path": "/policies/authenticationMethodsPolicy/authenticationMethodConfigurations"
+                        "/microsoftAuthenticator",
                 "delegatedPermission": "Policy.Read.All",
                 "applicationPermission": "Policy.Read.All"
             },
@@ -341,6 +342,21 @@ GRAPH_ENDPOINTS = {
             "path": "/users",
             "delegatedPermission": "Directory.Read.All",
             "applicationPermission": "Directory.Read.All"
+        },
+        "Guests": {
+            "path": "/users?$filter=userType eq %27Guest%27",
+            "delegatedPermission": "Directory.Read.All",
+            "applicationPermission": "Directory.Read.All"
+        },
+        "OnPremises": {
+            "path": "/users?$filter=OnPremisesSyncEnabled eq true",
+            "delegatedPermission": "Directory.Read.All",
+            "applicationPermission": "Directory.Read.All"
+        },
+        "DeltaUsers": {
+            "path": "/users/delta",
+            "delegatedPermission": "Directory.Read.All",
+            "applicationPermission": "Directory.Read.All"
         }
     },
     "Devices": {
@@ -357,7 +373,7 @@ GRAPH_ENDPOINTS = {
             "applicationPermission": "Teamwork.Read.All"
         }
     },
-    "Admin": {
+    "Sharepoint": {
         "sharepointSettings": {
             "path": "/admin/sharepoint/settings",
             "delegatedPermission": "SharePointTenantSettings.Read.All",
