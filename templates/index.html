@@ -1,268 +1,77 @@
 {% extends "base.html" %}
-
 {% block title %}Fetch - Token Manager{% endblock %}
-
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/graph.css') }}">
-{% endblock %}
-
-{% block navbar_extra %}
-<li class="nav-item dropdown">
-    <a class="nav-link dropdown-toggle" href="#" id="requestTokenDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-        Token Actions
-    </a>
-    <ul class="dropdown-menu" aria-labelledby="requestTokenDropdown">
-        <li><a class="dropdown-item" href="#" onclick="showSection('insertToken')">Insert Token</a></li>
-        <li><a class="dropdown-item" href="#" onclick="showSection('deviceCodeAuth')">Device Code Auth</a></li>
-        <li><a class="dropdown-item" href="#" onclick="showSection('requestTokenPassword')">Request Token with Password</a></li>
-        <li><a class="dropdown-item" href="#" onclick="showSection('requestTokenSecret')">Request Token with Client Secret</a></li>
-        <li><a class="dropdown-item" href="#" onclick="showSection('requestTokenCertificate')">Request Token with Certificate</a></li>
-        <li><a class="dropdown-item" href="#" onclick="showSection('authenticate')">Implicit Grant Auth</a></li>
-    </ul>
-</li>
-{% endblock %}
-
 {% block content %}
-<h3>Access Tokens</h3>
-<div class="table-responsive">
-    <table id="accessTokenTable" class="table table-striped table-sm">
-        <thead>
-            <tr>
-                <th>OID</th>
-                <th>Audience</th>
-                <th>Expiration</th>
-                <th>Email</th>
-                <th>SCP</th>
-                <th>Time Left</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for token in access_tokens %}
-            <tr>
-                <td>{{ token.oid }}</td>
-                <td>{{ token.audience }}</td>
-                <td>{{ datetime.utcfromtimestamp(token.expiration).strftime('%Y-%m-%d %H:%M:%S UTC') }}</td>
-                <td>{{ token.email }}</td>
-                <td>{{ token.scp }}</td>
-                <td>{{ timedelta(seconds=token.time_left) }}</td>
-                <td>
-                    <button onclick="showTokenDetails({{ token.id }})" class="btn btn-info btn-sm">Details</button>
-                    <button onclick="copyToken({{ token.id }})" class="btn btn-sm btn-secondary">Copy</button>
-                    <form action="{{ url_for('delete_token', token_id=token.id) }}" method="post" style="display:inline;">
-                        <button onclick="deleteToken({{ token.id }}, event)" class="btn btn-danger btn-sm">Delete</button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="container mt-4">
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-success">
+                <tr>
+                    <th>Type</th>
+                    <th>User/App</th>
+                    <th>Audience</th>
+                    <th>Expiration</th>
+                    <th>Tenant ID</th>
+                    <th>Time Left</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for token in tokens %}
+                <tr data-token-id="{{ token.id }}">
+                    <td><span class="badge {{ 'bg-primary' if token.token_type == 'access_token' else 'bg-secondary' }}">{{ token.token_type }}</span></td>
+                    <td>{{ token.email or token.user or 'N/A' }}</td>
+                    <td>{{ token.audience or 'N/A' }}</td>
+                    <td>{{ token.expiration | format_datetime if token.expiration else 'N/A' }}</td>
+                    <td>{{ token.tenant_id or 'N/A' }}</td>
+                    <td>
+                        {% if token.time_left and token.token_type == 'access_token' %}
+                            <span class="badge bg-{% if token.time_left > 3600 %}success{% elif token.time_left > 300 %}warning{% else %}danger{% endif %}">
+                                {{ timedelta(seconds=token.time_left) }}
+                            </span>
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if token.token_type == 'access_token' %}
+                            <button class="btn btn-sm btn-outline-primary show-token-details-btn" data-token-id="{{ token.id }}">Details</button>
+                        {% endif %}
+                        {% if token.token_type == 'refresh_token' %}
+                            <button class="btn btn-sm btn-outline-secondary generate-access-token-btn" data-token-id="{{ token.id }}">Generate Access Token</button>
+                        {% endif %}
+                        <button class="btn btn-sm btn-outline-secondary copy-token-btn" data-token-id="{{ token.id }}">Copy</button>
+                        <button class="btn btn-sm btn-outline-danger delete-token-btn" data-token-id="{{ token.id }}">Delete</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 
-<h3>Refresh Tokens</h3>
-<div class="table-responsive">
-    <table id="refreshTokenTable" class="table table-striped table-sm">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Token (first 10 chars)</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for token in refresh_tokens %}
-            <tr>
-                <td>{{ token.id }}</td>
-                <td>{{ token.token[:10] }}...</td>
-                <td>
-                    <button onclick="copyRefreshToken({{ token.id }})" class="btn btn-secondary btn-sm">Copy</button>
-                    <form action="{{ url_for('delete_token', token_id=token.id) }}" method="post" style="display:inline;">
-                        <button onclick="deleteToken({{ token.id }}, event)" class="btn btn-danger btn-sm">Delete</button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-
-<div id="actionSections">
-    <div id="queryTenant" class="action-section" style="display:none;">
-        <h4>Query Tenant Details</h4>
-        <form id="queryTenantForm">
-            <div class="form-group">
-                <input type="text" id="tenantDomain" class="form-control token-input" placeholder="Tenant Domain" required>
+<!-- Token Details Modal (only for access tokens) -->
+<div class="modal fade" id="tokenDetailsModal" tabindex="-1" aria-labelledby="tokenDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="tokenDetailsModalLabel">Token Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <button type="submit" class="btn btn-primary">Query</button>
-        </form>
-        <pre id="tenantDetails" class="mt-3"></pre>
-    </div>
-
-    <div id="insertToken" class="action-section" style="display:none;">
-        <h4>Insert Token</h4>
-        <form id="insertTokenForm">
-            <div class="form-group">
-                <input type="text" id="token" class="form-control token-input" placeholder="New Access Token or Refresh Token" required>
+            <div class="modal-body">
+                <h6>Highlighted Claims</h6>
+                <table class="table table-sm">
+                    <tbody id="highlightedClaimsTable"></tbody>
+                </table>
+                <h6>Full Decoded Token</h6>
+                <pre id="fullDecodedToken" class="bg-light p-3 rounded"></pre>
             </div>
-            <button type="submit" class="btn btn-primary">Insert Token</button>
-        </form>
-    </div>
-</div>
-
-<div id="deviceCodeAuth" class="action-section" style="display:none;">
-    <h4>Device Code Authentication</h4>
-    <form id="deviceCodeAuthForm">
-        <div class="form-group">
-            <label for="deviceCodeClientId">Client ID:</label>
-            <select id="deviceCodeClientId" class="form-control">
-                <option value="14d82eec-204b-4c2f-b7e8-296a70dab67e">Graph Command Line Tools</option>
-                <option value="04b07795-8ddb-461a-bbee-02f9e1bf7b46">Microsoft Azure CLI</option>
-                <option value="1950a258-227b-4e31-a9cf-717495945fc2">Microsoft Azure PowerShell</option>
-                <option value="00000003-0000-0000-c000-000000000000">Microsoft Graph</option>
-                <option value="">Custom</option>
-            </select>
-        </div>
-        <div id="customClientIdGroup" class="form-group" style="display:none;">
-            <input type="text" id="customClientId" class="form-control" placeholder="Enter custom Client ID">
-        </div>
-        <div class="form-group">
-            <input type="text" id="deviceCodeTenant" class="form-control" placeholder="Tenant (optional)">
-        </div>
-        <div class="form-group">
-            <input type="text" id="deviceCodeScope" class="form-control" placeholder="Scope (optional)">
-        </div>
-        <button type="button" class="btn btn-primary" id="startDeviceCodeAuth">Start Device Code Auth</button>
-        <button type="button" class="btn btn-secondary" id="cancelDeviceCodeAuth" style="display:none;">Cancel Auth</button>
-    </form>
-    <div id="deviceCodeResult" class="mt-3">
-        <p id="deviceCodeMessage"></p>
-        <p id="deviceCodeUserCode"></p>
-    </div>
-</div>
-
-
-<div id="requestTokenPassword" class="action-section" style="display:none;">
-    <h4>Request Token with Password</h4>
-    <form id="requestTokenPasswordForm">
-        <div class="form-group">
-            <label for="passwordClientId">Client ID:</label>
-            <select id="passwordClientId" name="client_id" class="form-control">
-                <option value="14d82eec-204b-4c2f-b7e8-296a70dab67e">Graph Command Line Tools</option>
-                <option value="04b07795-8ddb-461a-bbee-02f9e1bf7b46">Microsoft Azure CLI</option>
-                <option value="1950a258-227b-4e31-a9cf-717495945fc2">Microsoft Azure PowerShell</option>
-                <option value="00000003-0000-0000-c000-000000000000">Microsoft Graph</option>
-                <option value="">Custom</option>
-            </select>
-        </div>
-        <div id="customPasswordClientIdGroup" class="form-group" style="display:none;">
-            <input type="text" id="customPasswordClientId" class="form-control" placeholder="Enter custom Client ID">
-        </div>
-        <div class="form-group">
-            <label for="passwordUsername">Username:</label>
-            <input type="text" id="passwordUsername" name="username" class="form-control" required>
-        </div>
-        <div class="form-group">
-            <label for="passwordPassword">Password:</label>
-            <input type="password" id="passwordPassword" name="password" class="form-control" required>
-        </div>
-        <div class="form-group">
-            <label for="passwordTenant">Tenant ID or Domain:</label>
-            <input type="text" id="passwordTenant" name="tenant" class="form-control" required>
-        </div>
-        <div class="form-group">
-            <label for="passwordScope">Scope:</label>
-            <input type="text" id="passwordScope" name="scope" class="form-control" value="https://graph.microsoft.com/.default offline_access openid email" required>
-        </div>
-        <button type="submit" class="btn btn-primary">Request Token</button>
-    </form>
-    <div id="passwordTokenResult" class="mt-3"></div>
-</div>
-
-<div id="requestTokenSecret" class="action-section" style="display:none;">
-    <h4>Request Token with Client Secret</h4>
-    <form id="requestTokenSecretForm">
-
-    <div class="form-group">
-        <input type="text" name="client_id" class="form-control" placeholder="Client ID" required>
-    </div>
-    <div class="form-group">
-        <input type="password" name="client_secret" class="form-control" placeholder="Client Secret" required>
-    </div>
-    <div class="form-group">
-        <input type="text" name="scope" class="form-control" placeholder="Scope" required>
-    </div>
-    <div class="form-group">
-        <input type="text" name="tenant" class="form-control" placeholder="Tenant ID or Domain" required>
-    </div>
-    <button type="submit" class="btn btn-primary">Request Token</button>
-</form>
-    <div id="tokenResult" class="mt-3"></div>
-</div>
-
-<div id="requestTokenCertificate" class="action-section" style="display:none;">
-        <h4>Request Token with Certificate</h4>
-        <form id="requestTokenCertificateForm">
-            <div class="form-group">
-                <input type="text" id="certClientId" class="form-control token-input" placeholder="Client ID" required>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="copyFullTokenBtn">Copy Full Token</button>
             </div>
-            <div class="form-group">
-                <input type="file" id="certFile" class="form-control-file" required>
-            </div>
-            <button type="submit" class="btn btn-primary">Request Token</button>
-        </form>
-</div>
-
-<div id="authenticate" class="action-section" style="display:none;">
-    <h4>Implicit Grant Auth</h4>
-    <form id="authenticateForm">
-        <div class="form-group">
-            <input type="text" id="authClientId" class="form-control token-input" placeholder="Client ID" required>
         </div>
-        <div class="form-group">
-            <input type="text" id="authTenantId" class="form-control token-input" placeholder="Tenant ID" required>
-        </div>
-        <div class="form-group">
-           <input type="text" id="authRedirectUri" class="form-control token-input" placeholder="Redirect URI" required value="https://127.0.0.1:5000/admin_consent_callback">
-        </div>
-        <div class="form-group">
-            <input type="text" id="authScope" class="form-control token-input" placeholder="Scope (e.g., openid profile email)" required value="openid profile email">
-        </div>
-        <div class="form-group">
-            <select id="authResponseType" class="form-control token-input" required>
-                <option value="id_token">ID Token</option>
-                <option value="id_token token">ID Token + Access Token</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <input type="text" id="authState" class="form-control token-input" placeholder="State (optional)">
-        </div>
-        <div class="form-group">
-            <input type="text" id="authNonce" class="form-control token-input" placeholder="Nonce (optional)">
-        </div>
-        <button type="submit" class="btn btn-primary">Authenticate</button>
-    </form>
-</div>
-
-<div id="tokenDetails" class="mt-4" style="display:none;">
-    <h4>Token Details</h4>
-    <h5>Highlighted Claims</h5>
-    <table id="highlightedClaimsTable" class="table table-striped table-sm">
-        <thead>
-            <tr>
-                <th>Claim</th>
-                <th>Value</th>
-            </tr>
-        </thead>
-        <tbody>
-        </tbody>
-    </table>
-    <h5>Full Decoded Token</h5>
-    <div class="position-relative">
-        <pre id="fullDecodedToken" class="p-3 rounded" style="background-color: #e9ecef; white-space: pre-wrap; word-wrap: break-word;"></pre>
-        <button class="btn btn-sm btn-secondary position-absolute top-0 end-0 m-2" onclick="copyFullDecodedToken()">Copy</button>
     </div>
 </div>
-
 
 {% endblock %}
 

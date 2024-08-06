@@ -332,3 +332,15 @@ table.dataTable {
     border-radius: 5px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
+
+.table-striped > tbody > tr:nth-of-type(odd) {
+        background-color: #f8f9fa;  /* Light grey for odd rows */
+}
+
+.table-striped > tbody > tr:nth-of-type(even) {
+        background-color: #ffffff;  /* White for even rows */
+}
+
+.table-hover tbody tr:hover {
+        background-color: #e2e6ea;  /* Slightly darker grey on hover */
+}

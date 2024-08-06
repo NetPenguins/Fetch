@@ -35,3 +35,59 @@ def init_db():
 
     conn.commit()
     conn.close()
+
+def create_tables():
+    conn = get_db_connection()
+    conn.execute('''
+    CREATE TABLE IF NOT EXISTS tokens (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        token TEXT NOT NULL,
+        token_type TEXT NOT NULL,
+        oid TEXT,
+        audience TEXT,
+        expiration INTEGER,
+        email TEXT,
+        scp TEXT,
+        tenant_id TEXT,
+        user TEXT,
+        source TEXT
+    )
+    ''')
+    conn.commit()
+    conn.close()
+
+def migrate_data():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Check if old tables exist
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='access_tokens'")
+    access_tokens_exist = cursor.fetchone() is not None
+
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='refresh_tokens'")
+    refresh_tokens_exist = cursor.fetchone() is not None
+
+    if access_tokens_exist:
+        # Migrate data from access_tokens table
+        cursor.execute('''
+        INSERT INTO tokens (token, token_type, oid, audience, expiration, email, scp)
+        SELECT token, 'access_token', oid, audience, expiration, email, scp
+        FROM access_tokens
+        ''')
+
+    if refresh_tokens_exist:
+        # Migrate data from refresh_tokens table
+        cursor.execute('''
+        INSERT INTO tokens (token, token_type)
+        SELECT token, 'refresh_token'
+        FROM refresh_tokens
+        ''')
+
+    # Drop old tables
+    if access_tokens_exist:
+        cursor.execute('DROP TABLE access_tokens')
+    if refresh_tokens_exist:
+        cursor.execute('DROP TABLE refresh_tokens')
+
+    conn.commit()
+    conn.close()

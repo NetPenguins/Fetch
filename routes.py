@@ -18,12 +18,14 @@ import time
 def index():
     conn = get_db_connection()
     current_time = int(time.time())
-    access_tokens = conn.execute('SELECT *, (expiration - ?) AS time_left FROM access_tokens',
-                                 (current_time,)).fetchall()
-    refresh_tokens = conn.execute('SELECT * FROM refresh_tokens').fetchall()
+    tokens = conn.execute('''
+    SELECT *, (expiration - ?) AS time_left 
+    FROM tokens
+    ORDER BY CASE WHEN token_type = 'access_token' THEN 0 ELSE 1 END, expiration DESC
+    ''', (current_time,)).fetchall()
     conn.close()
-    return render_template('index.html', access_tokens=access_tokens, refresh_tokens=refresh_tokens,
-                           current_time=aware_utcnow(), datetime=datetime, timedelta=timedelta)
+    return render_template('index.html', tokens=tokens, current_time=aware_utcnow(),
+                           datetime=datetime, timedelta=timedelta)
 
 
 @app.route('/request_token_password', methods=['POST'])
@@ -84,7 +86,7 @@ def guides():
 @app.route('/graph_enumerator')
 def graph_enumerator():
     conn = get_db_connection()
-    access_tokens = conn.execute('SELECT id, oid, audience, email FROM access_tokens').fetchall()
+    access_tokens = conn.execute('SELECT id, oid, audience, email FROM tokens WHERE token_type = "access_token"').fetchall()
     conn.close()
     current_time = aware_utcnow()
     return render_template('graph_enumerator.html',
@@ -99,7 +101,7 @@ def enumerate_graph():
     endpoints = request.form.getlist('endpoints')
 
     conn = get_db_connection()
-    token = conn.execute('SELECT token FROM access_tokens WHERE id = ?', (token_id,)).fetchone()
+    token = conn.execute('SELECT token FROM tokens WHERE id = ? AND token_type = "access_token"', (token_id,)).fetchone()
     conn.close()
 
     if not token:
@@ -152,26 +154,60 @@ def enumerate_graph():
 @app.route('/insert_token', methods=['POST'])
 def insert_token_route():
     token = request.form['token']
-    return insert_token(token)
+    # Determine the token type
+    token_type = determine_token_type(token)
+    # Get additional information if available
+    tenant_id = request.form.get('tenant_id')
+    user = request.form.get('user')
+    source = request.form.get('source', 'Manual insertion')
+
+    # Call the insert_token function with all necessary arguments
+    result = insert_token(token, token_type, tenant_id, user, source)
+
+    if result.get('success'):
+        return jsonify(result), 200
+    else:
+        return jsonify(result), 400
+
+
+from flask import request, jsonify
+import requests
 
 
 @app.route('/request_token_secret', methods=['POST'])
 def request_token_secret():
     tenant = request.form.get('tenant')
     client_id = request.form.get('client_id')
-    scope = request.form.get('scope')
     client_secret = request.form.get('client_secret')
+    scope = request.form.get('scope', 'https://graph.microsoft.com/.default')
 
-    result = request_token_with_secret(client_id, client_secret, scope, tenant)
-    return jsonify(result), 200 if result.get('success') else 400
+    if not all([tenant, client_id, client_secret]):
+        return jsonify({"success": False, "error": "Missing required parameters"}), 400
 
+    token_url = f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token"
 
-@app.route('/generate_from_refresh', methods=['POST'])
-def generate_from_refresh():
-    client_id = request.form['client_id']
-    refresh_token = request.form['refresh_token']
-    result = generate_new_tokens(client_id, refresh_token)
-    return jsonify(result), 200 if result.get('success') else 400
+    data = {
+        'grant_type': 'client_credentials',
+        'client_id': client_id,
+        'client_secret': client_secret,
+        'scope': scope
+    }
+
+    try:
+        response = requests.post(token_url, data=data)
+        response.raise_for_status()
+        token_data = response.json()
+
+        return jsonify({
+            "success": True,
+            "access_token": token_data['access_token'],
+            "token_type": token_data['token_type'],
+            "expires_in": token_data['expires_in']
+        })
+    except requests.exceptions.RequestException as e:
+        app.logger.error(f"Error requesting token: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 400
+
 
 
 @app.route('/refresh_token', methods=['POST'])
@@ -225,25 +261,18 @@ def delete_token(token_id):
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # First, check which table the token is in
-    cursor.execute('SELECT 1 FROM access_tokens WHERE id = ?', (token_id,))
-    is_access_token = cursor.fetchone() is not None
-
-    if is_access_token:
-        cursor.execute('DELETE FROM access_tokens WHERE id = ?', (token_id,))
-        table_name = 'access_tokens'
-    else:
-        cursor.execute('DELETE FROM refresh_tokens WHERE id = ?', (token_id,))
-        table_name = 'refresh_tokens'
-
+    # Delete the token from the tokens table
+    cursor.execute('DELETE FROM tokens WHERE id = ?', (token_id,))
     deleted = cursor.rowcount > 0
+
     conn.commit()
     conn.close()
 
     if deleted:
-        return '', 204  # No Content
+        return jsonify({"success": True, "message": "Token deleted successfully"}), 200
     else:
-        return '', 404  # Not Found
+        return jsonify({"success": False, "error": "Token not found"}), 404
+
 
 
 @app.route('/get_refresh_tokens')
@@ -265,7 +294,7 @@ def get_refresh_tokens():
 def token_details(token_id):
     try:
         conn = get_db_connection()
-        token = conn.execute('SELECT token FROM access_tokens WHERE id = ?', (token_id,)).fetchone()
+        token = conn.execute('SELECT token, token_type, email, user FROM tokens WHERE id = ?', (token_id,)).fetchone()
         conn.close()
 
         if not token:
@@ -278,13 +307,17 @@ def token_details(token_id):
             'iat': decoded_token.get('iat'),
             'aud': decoded_token.get('aud'),
             'iss': decoded_token.get('iss'),
-            'sub': decoded_token.get('sub')
+            'sub': decoded_token.get('sub'),
+            'idtyp': decoded_token.get('idtyp', 'Not specified'),
+            'identifier': token['email'] or token['user']
         }
 
         return jsonify({
             "success": True,
             "highlighted_claims": highlighted_claims,
-            "full_decoded": decoded_token
+            "full_decoded": decoded_token,
+            "token_type": token['token_type'],
+            "identifier": token['email'] or token['user']
         })
 
     except jwt.exceptions.DecodeError as e:
@@ -297,7 +330,7 @@ def token_details(token_id):
 @app.route('/get_access_token/<int:token_id>', methods=['GET'])
 def get_access_token(token_id):
     conn = get_db_connection()
-    token = conn.execute('SELECT token FROM access_tokens WHERE id = ?', (token_id,)).fetchone()
+    token = conn.execute('SELECT token FROM tokens WHERE id = ? AND token_type = "access_token"', (token_id,)).fetchone()
     conn.close()
     if token:
         return jsonify({"success": True, "access_token": token['token']})
@@ -308,7 +341,7 @@ def get_access_token(token_id):
 @app.route('/get_token_permissions/<int:token_id>')
 def get_token_permissions(token_id):
     conn = get_db_connection()
-    token = conn.execute('SELECT token FROM access_tokens WHERE id = ?', (token_id,)).fetchone()
+    token = conn.execute('SELECT token FROM tokens WHERE id = ? AND token_type = "access_token"', (token_id,)).fetchone()
     conn.close()
 
     if token:
@@ -324,10 +357,12 @@ def get_token_permissions(token_id):
         return jsonify({"success": False, "error": "Token not found"}), 404
 
 
+
+
 @app.route('/db_analyzer')
 def db_analyzer():
     conn = get_db_connection()
-    access_tokens = conn.execute('SELECT id, oid, audience, email FROM access_tokens').fetchall()
+    access_tokens = conn.execute('SELECT id, oid, audience, email FROM tokens WHERE token_type = "access_token"').fetchall()
     conn.close()
     current_time = aware_utcnow()
     return render_template('db_analyzer.html',
@@ -335,10 +370,12 @@ def db_analyzer():
                            current_time=current_time)
 
 
+
+
 @app.route('/graph_action/<action>/<int:token_id>')
 def graph_action(action, token_id):
     conn = get_db_connection()
-    token = conn.execute('SELECT token FROM access_tokens WHERE id = ?', (token_id,)).fetchone()
+    token = conn.execute('SELECT token FROM tokens WHERE id = ? AND token_type = "access_token"', (token_id,)).fetchone()
     conn.close()
 
     if not token:
@@ -590,56 +627,76 @@ def graph_action(action, token_id):
 
 @app.route('/device_code_auth', methods=['POST'])
 def device_code_auth():
-    client_id = request.form.get('client_id')
-    tenant = request.form.get('tenant', 'common')
-    scope = request.form.get('scope', 'https://graph.microsoft.com/User.Read offline_access')
+    client_id = request.form['client_id']
+    tenant = request.form['tenant']
+    scope = request.form['scope']
 
-    # Step 1: Request device code
-    device_code_url = f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/devicecode"
-    device_code_response = requests.post(device_code_url, data={
-        "client_id": client_id,
-        "scope": scope
-    })
+    url = f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/devicecode"
+    data = {
+        'client_id': client_id,
+        'scope': scope
+    }
 
-    if device_code_response.status_code != 200:
-        return jsonify({"error": "Failed to get device code"}), 400
+    response = requests.post(url, data=data)
+    if response.status_code == 200:
+        return jsonify(response.json())
+    else:
+        return jsonify({"error": f"Error: {response.status_code} - {response.text}"}), 400
 
-    device_code_data = device_code_response.json()
 
-    # Return the device code data to the client
-    return jsonify({
-        "user_code": device_code_data["user_code"],
-        "verification_uri": device_code_data["verification_uri"],
-        "message": device_code_data["message"],
-        "device_code": device_code_data["device_code"],
-        "interval": device_code_data["interval"]
-    })
+@app.route('/get_tokens_table')
+def get_tokens_table():
+    conn = get_db_connection()
+    current_time = int(time.time())
+    tokens = conn.execute('''
+    SELECT *, (expiration - ?) AS time_left 
+    FROM tokens
+    ORDER BY CASE WHEN token_type = 'access_token' THEN 0 ELSE 1 END, expiration DESC
+    ''', (current_time,)).fetchall()
+    conn.close()
+    return render_template('tokens_table.html', tokens=tokens, current_time=aware_utcnow(),
+                           datetime=datetime, timedelta=timedelta)
 
+@app.route('/generate_from_refresh', methods=['POST'])
+def generate_from_refresh():
+    refresh_token_id = request.form['refresh_token_id']
+    client_id = request.form['client_id']  # Add this line
+    conn = get_db_connection()
+    refresh_token = conn.execute('SELECT token, tenant_id FROM tokens WHERE id = ? AND token_type = "refresh_token"', (refresh_token_id,)).fetchone()
+    conn.close()
+
+    if not refresh_token:
+        return jsonify({"success": False, "error": "Refresh token not found"}), 404
+
+    result = generate_new_tokens(client_id, refresh_token['token'], refresh_token['tenant_id'])
+    return jsonify(result)
 
 @app.route('/poll_for_token', methods=['POST'])
 def poll_for_token():
-    client_id = request.form.get('client_id')
-    device_code = request.form.get('device_code')
-    tenant = request.form.get('tenant', 'common')
+    client_id = request.form['client_id']
+    device_code = request.form['device_code']
+    tenant = request.form['tenant']
 
-    token_url = f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token"
+    url = f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token"
+    data = {
+        'grant_type': 'urn:ietf:params:oauth:grant-type:device_code',
+        'client_id': client_id,
+        'device_code': device_code
+    }
 
-    token_response = requests.post(token_url, data={
-        "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
-        "client_id": client_id,
-        "device_code": device_code
-    })
-
-    if token_response.status_code == 200:
-        token_data = token_response.json()
-        access_token = token_data.get("access_token")
-        return jsonify({"status": "success", "access_token": access_token})
+    response = requests.post(url, data=data)
+    if response.status_code == 200:
+        token_data = response.json()
+        return jsonify({
+            "status": "success",
+            "access_token": token_data['access_token'],
+            "refresh_token": token_data.get('refresh_token')
+        })
+    elif response.status_code == 400 and 'authorization_pending' in response.text:
+        return jsonify({"status": "pending"})
     else:
-        error = token_response.json().get("error")
-        if error == "authorization_pending":
-            return jsonify({"status": "pending"})
-        else:
-            return jsonify({"status": "error", "error": error})
+        return jsonify({"status": "error", "error": f"Error: {response.status_code} - {response.text}"}), 400
+
 
 
 @app.route('/current_time')

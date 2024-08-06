@@ -10,81 +10,58 @@ import sqlite3
 
 def determine_token_type(token):
     if token.startswith("eyJ"):
-        return 'Access Token'
+        return 'access_token'
     elif token.startswith("0."):
-        return 'Refresh Token'
+        return 'refresh_token'
     else:
-        return 'Unknown Token Type'
+        return 'unknown'
 
 
-def insert_token(token):
-    token_type = determine_token_type(token)
-
+def insert_token(token, token_type, tenant_id=None, user=None, source=None):
+    conn = get_db_connection()
     try:
-        if token_type == 'Access Token':
-            try:
-                decoded = jwt.decode(token, options={"verify_signature": False})
-                print(
-                    f"Decoded token: {json.dumps({k: v for k, v in decoded.items() if k not in ['exp', 'iat']}, indent=2)}")
+        if token_type == 'access_token':
+            decoded = jwt.decode(token, options={"verify_signature": False})
+            expiration = int(decoded.get('exp', 0))
+            oid = decoded.get('oid', 'Unknown')
+            audience = decoded.get('aud', 'Unknown')
 
-                expiration = int(decoded.get('exp', 0))
-                current_time = int(time.time())
+            # Determine if it's a user token or an app token
+            idtyp = decoded.get('idtyp', '').lower()
 
-                if expiration < current_time + 300:
-                    return jsonify({"error": "Token has expired or will expire in less than 5 minutes"}), 400
-
-                oid = decoded.get('oid', 'Unknown')
-                audience = decoded.get('aud', 'Unknown')
-
-                # Check if it's an app or user token
-                idtyp = decoded.get('idtyp', '').lower()
-
-                if idtyp == 'app':
-                    # For app tokens, use app_displayname and roles as scp
-                    email_or_appname = decoded.get('app_displayname', 'Unknown App')
+            if idtyp == 'app':
+                identifier = decoded.get('app_displayname', 'Unknown App')
+                scp = ' '.join(decoded.get('roles', []))
+            else:
+                identifier = decoded.get('preferred_username') or decoded.get('email') or decoded.get('unique_name',
+                                                                                                      'Unknown User')
+                scp = decoded.get('scp', '')
+                if not scp:
                     scp = ' '.join(decoded.get('roles', []))
-                else:
-                    # For user tokens, use email and scp (or roles if scp is not available)
-                    email_or_appname = decoded.get('unique_name', 'Unknown')
-                    scp = decoded.get('scp', '')
-                    if not scp:
-                        scp = ' '.join(decoded.get('roles', []))
 
-                conn = get_db_connection()
-                cursor = conn.cursor()
-                cursor.execute('SELECT * FROM access_tokens WHERE token = ?', (token,))
-                existing_token = cursor.fetchone()
-
-                if existing_token:
-                    conn.close()
-                    return jsonify({"error": "Token already exists in the database"}), 400
-
-                conn.execute(
-                    'INSERT INTO access_tokens (token, oid, audience, expiration, email, scp, token_type) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                    (token, oid, audience, expiration, email_or_appname, scp, token_type))
-                conn.commit()
-                conn.close()
-            except jwt.exceptions.DecodeError:
-                return jsonify({"error": "Invalid access token format"}), 400
-        elif token_type == 'Refresh Token':
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute('SELECT * FROM refresh_tokens WHERE token = ?', (token,))
-            existing_token = cursor.fetchone()
-
-            if existing_token:
-                conn.close()
-                return jsonify({"error": "Refresh token already exists in the database"}), 400
-
-            conn.execute('INSERT INTO refresh_tokens (token) VALUES (?)', (token,))
-            conn.commit()
-            conn.close()
+            conn.execute('''
+            INSERT INTO tokens (token, token_type, oid, audience, expiration, email, scp, tenant_id, user, source)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (token, token_type, oid, audience, expiration, identifier, scp, tenant_id, user or identifier, source))
+        elif token_type == 'refresh_token':
+            # For refresh tokens, we don't decode them. Instead, we store minimal information.
+            conn.execute('''
+            INSERT INTO tokens (token, token_type, tenant_id, user, source)
+            VALUES (?, ?, ?, ?, ?)
+            ''', (token, token_type, tenant_id, user, source))
         else:
-            return jsonify({"error": "Unknown token type"}), 400
+            # Handle unknown token type
+            conn.execute('''
+            INSERT INTO tokens (token, token_type, source)
+            VALUES (?, ?, ?)
+            ''', (token, 'unknown', 'Manual insertion'))
 
-        return jsonify({"success": True, "message": f"{token_type} inserted successfully"}), 200
+        conn.commit()
+        return {"success": True, "message": f"{token_type} inserted successfully"}
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return {"error": str(e)}
+    finally:
+        conn.close()
 
 
 def store_graph_results(endpoint, data):
@@ -106,7 +83,7 @@ def store_graph_results(endpoint, data):
         conn.close()
 
 
-def generate_new_tokens(client_id, refresh_token):
+def generate_new_tokens(client_id, refresh_token, tenant_id):
     url = 'https://login.microsoftonline.com/common/oauth2/v2.0/token'
     data = {
         'client_id': client_id,
@@ -123,11 +100,11 @@ def generate_new_tokens(client_id, refresh_token):
         new_refresh_token = token_data.get('refresh_token', refresh_token)
 
         # Insert the new access token
-        insert_token(new_access_token)
+        insert_token(new_access_token, 'access_token', tenant_id=tenant_id, source='Refresh Token')
 
         # Insert the new refresh token if it's different from the old one
         if new_refresh_token != refresh_token:
-            insert_token(new_refresh_token)
+            insert_token(new_refresh_token, 'refresh_token', tenant_id=tenant_id, source='Token Refresh')
 
         return {
             "success": True,
@@ -137,6 +114,8 @@ def generate_new_tokens(client_id, refresh_token):
         }
     else:
         return {"error": "Failed to generate new access token"}
+
+
 
 
 def request_token_with_secret(client_id, client_secret, scope, tenant):
@@ -159,7 +138,7 @@ def request_token_with_secret(client_id, client_secret, scope, tenant):
         result = response.json()
         access_token = result.get('access_token')
         if access_token:
-            insert_token(access_token)
+            insert_token(access_token, 'access_token', tenant_id=tenant, source='Client Secret Auth')
             return {
                 "success": True,
                 "access_token": access_token,
