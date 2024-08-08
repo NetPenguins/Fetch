@@ -23,15 +23,20 @@
                     <td>{{ token.audience or 'N/A' }}</td>
                     <td>{{ token.expiration | format_datetime if token.expiration else 'N/A' }}</td>
                     <td>{{ token.tenant_id or 'N/A' }}</td>
-                    <td>
-                        {% if token.time_left and token.token_type == 'access_token' %}
-                            <span class="badge bg-{% if token.time_left > 3600 %}success{% elif token.time_left > 300 %}warning{% else %}danger{% endif %}">
-                                {{ timedelta(seconds=token.time_left) }}
-                            </span>
-                        {% else %}
-                            N/A
-                        {% endif %}
-                    </td>
+                        <td>
+        {% if token.time_left and token.token_type == 'access_token' %}
+            {% if token.time_left > 0 %}
+                <span class="badge bg-{% if token.time_left > 3600 %}success{% elif token.time_left > 300 %}warning{% else %}danger{% endif %}">
+                    {{ timedelta(seconds=token.time_left) }}
+                </span>
+            {% else %}
+                <span class="badge bg-secondary">Expired</span>
+            {% endif %}
+        {% else %}
+            N/A
+        {% endif %}
+    </td>
+
                     <td>
                         {% if token.token_type == 'access_token' %}
                             <button class="btn btn-sm btn-outline-primary show-token-details-btn" data-token-id="{{ token.id }}">Details</button>
