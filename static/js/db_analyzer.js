@@ -28,6 +28,11 @@ function setupActionButtons() {
             action: getPrivilegedRoles
         },
         {
+            name: 'Get Role Eligibility Schedules',
+            permissions: ['RoleEligibilitySchedule.Read.Directory', 'RoleManagement.Read.Directory', 'Directory.Read.All'],
+            action: getRoleEligibilitySchedules
+        },
+        {
             name: 'Get User Consent Requests',
             permissions: ['ConsentRequest.Read.All', 'ConsentRequest.ReadWrite.All'],
             action: getUserConsentRequests
@@ -193,6 +198,10 @@ function checkAndHighlightPermissions(tokenId) {
 
 function getPrivilegedRoles() {
     performGraphAction('get_privileged_roles');
+}
+
+function getRoleEligibilitySchedules() {
+    performGraphAction('get_role_eligibility_schedules');
 }
 
 function checkExpiringAppPasswords() {

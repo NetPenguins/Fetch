@@ -53,6 +53,7 @@ function createEndpointsList(endpoints) {
     }
 }
 
+
 function createCategoryWrapper(category, subcategories) {
     const categoryWrapper = document.createElement('div');
     categoryWrapper.className = 'category-wrapper';
@@ -122,7 +123,7 @@ function createSubcategoryDiv(category, subcategory, data) {
     return subcategoryDiv;
 }
 
-function createEndpointItem(category, endpoint) {
+function createEndpointItem(category, endpoint, endpointData) {
     const endpointItem = document.createElement('div');
     endpointItem.className = 'endpoint-item form-check';
     endpointItem.innerHTML = `
@@ -440,24 +441,69 @@ function updateAllCategoryCheckboxes() {
     });
 }
 
+function getSelectedTokenAudience() {
+    const tokenSelect = document.getElementById('tokenSelect');
+    const selectedOption = tokenSelect.options[tokenSelect.selectedIndex];
+    if (!selectedOption) return null;
+
+    // Assuming the format is "id - audience - email"
+    const parts = selectedOption.text.split(' - ');
+    return parts.length > 1 ? parts[1].trim() : null;
+}
+
+
 async function enumerateGraph() {
-    const tokenId = tokenSelect.value;
-    if (!tokenId) {
+    console.log("Starting enumeration...");
+    const tokenSelect = document.getElementById('tokenSelect');
+    const selectedOption = tokenSelect.options[tokenSelect.selectedIndex];
+
+    if (!selectedOption) {
+        console.log("No token selected");
         alert("Please select an access token first.");
         return;
     }
 
-    const endpoints = Array.from(document.querySelectorAll('input[name="endpoints"]:checked')).map(cb => cb.value);
-    if (endpoints.length === 0) {
+    const tokenId = selectedOption.value;
+    const tokenAudience = getSelectedTokenAudience();
+
+    console.log(`Selected token ID: ${tokenId}, Audience: ${tokenAudience}`);
+
+    const selectedEndpoints = Array.from(document.querySelectorAll('input[name="endpoints"]:checked')).map(cb => cb.value);
+    console.log("Selected endpoints:", selectedEndpoints);
+
+    if (selectedEndpoints.length === 0) {
+        console.log("No endpoints selected");
         alert("Please select at least one endpoint.");
+        return;
+    }
+
+    // Filter endpoints based on audience
+    const validEndpoints = selectedEndpoints.filter(endpoint => {
+        const [category, subCategory] = endpoint.split('.');
+        const endpointData = GRAPH_ENDPOINTS[category][subCategory];
+        console.log(`Checking endpoint: ${endpoint}`);
+        console.log(`Endpoint audience:`, endpointData.audience);
+        console.log(`Token audience: ${tokenAudience}`);
+        const isValid = Array.isArray(endpointData.audience)
+            ? endpointData.audience.includes(tokenAudience)
+            : endpointData.audience === tokenAudience;
+        console.log(`Is valid: ${isValid}`);
+        return isValid;
+    });
+    console.log("Valid endpoints:", validEndpoints);
+
+    if (validEndpoints.length === 0) {
+        console.log("No valid endpoints found");
+        alert("No selected endpoints match the token's audience.");
         return;
     }
 
     const formData = new FormData();
     formData.append('token_id', tokenId);
-    endpoints.forEach(endpoint => formData.append('endpoints', endpoint));
+    validEndpoints.forEach(endpoint => formData.append('endpoints', endpoint));
 
     try {
+        console.log("Sending request to /enumerate_graph");
         const response = await fetch('/enumerate_graph', {
             method: 'POST',
             body: formData
@@ -468,6 +514,8 @@ async function enumerateGraph() {
         }
 
         const data = await response.json();
+        console.log("Received data from server:", data);
+
         if (Object.keys(data).length === 0) {
             throw new Error("No data returned from the server");
         }
@@ -505,10 +553,24 @@ async function enumerateGraph() {
         });
 
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Error during enumeration:', error);
         document.getElementById(RESULTS_DIV_ID).innerHTML = `<p class="text-danger">Error: ${error.message}</p>`;
     }
 }
+
+async function fetchTokenDetails(tokenId) {
+    console.log(`Fetching details for token ID: ${tokenId}`);
+    const response = await fetch(`/get_token_details/${tokenId}`);
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Error fetching token details: ${response.status} ${errorText}`);
+        throw new Error(`Failed to fetch token details: ${response.status} ${response.statusText}`);
+    }
+    const data = await response.json();
+    console.log(`Received token details:`, data);
+    return data;
+}
+
 
 function createSeparator() {
     const separator = document.createElement('hr');
@@ -530,29 +592,6 @@ function createResultsHeader() {
         </div>
     `;
 }
-
-
-
-// Create error section
-function createErrorSection(endpoint, errorMessage, index) {
-    const sectionDiv = document.createElement('div');
-    sectionDiv.className = 'result-section mb-3';
-
-    const headerBar = createResultHeaderBar(endpoint, index, 'error');
-    setErrorState(headerBar, errorMessage);
-
-    const errorContainer = document.createElement('div');
-    errorContainer.id = `dataTable${index}Container`;
-    errorContainer.className = 'mt-2';
-    errorContainer.style.display = 'none';
-    errorContainer.innerHTML = `<p>${errorMessage}</p>`;
-
-    sectionDiv.appendChild(headerBar);
-    sectionDiv.appendChild(errorContainer);
-
-    return sectionDiv;
-}
-
 
 function createResultHeaderBar(endpoint, index, status) {
     const headerBar = document.createElement('div');
@@ -683,31 +722,28 @@ function initializeDataTable(data, index, headerBar) {
     const tableId = `dataTable${index}`;
     const $table = jQuery(`#${tableId}`);
 
+
     if ($table.length === 0) {
         console.error(`Table with id ${tableId} not found`);
-        setErrorState(headerBar, `Table with id ${tableId} not found`);
         return;
     }
 
     try {
-        const [columns, dataSet] = prepareDataForTable(data);
-
-        if (columns.length === 0 || dataSet.length === 0) {
-            throw new Error("No valid data structure found");
-        }
+        // Get the actual column names from the first data item
+        const columns = Object.keys(data[0]).map(key => ({
+            title: key,
+            data: key
+        }));
 
         const dataTable = $table.DataTable({
-            data: dataSet,
+            data: data,
             columns: columns,
             pageLength: 10,
             lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "All"]],
             scrollX: true,
-            autoWidth: false,
-            initComplete: function(settings, json) {
-                $table.css('font-size', '14px');
-                addUniqueIdsToFormFields($table, index);
-            }
+            autoWidth: false
         });
+
 
         addShowMoreEventListener($table, dataTable);
 

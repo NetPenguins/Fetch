@@ -24,8 +24,20 @@ def index():
     ORDER BY CASE WHEN token_type = 'access_token' THEN 0 ELSE 1 END, expiration DESC
     ''', (current_time,)).fetchall()
     conn.close()
-    return render_template('index.html', tokens=tokens, current_time=aware_utcnow(),
-                           datetime=datetime, timedelta=timedelta)
+
+    token_list = []
+    for token in tokens:
+        token_dict = dict(token)
+        if token_dict['expiration']:
+            token_dict['expiration'] = datetime.fromtimestamp(token_dict['expiration'])
+        token_dict['user'] = token_dict.get('email') or token_dict.get('user')
+        token_list.append(token_dict)
+
+    return render_template('index.html',
+                           tokens=token_list,
+                           current_time=datetime.utcnow(),
+                           timedelta=timedelta,
+                           format_datetime=lambda dt: dt.strftime('%Y-%m-%d %H:%M:%S') if dt else 'N/A')
 
 
 @app.route('/request_token_password', methods=['POST'])
@@ -430,6 +442,36 @@ def graph_action(action, token_id):
             custom_roles = [role for role in all_roles if not role.get('isBuiltIn', True)]
             return jsonify({"value": custom_roles})
 
+        elif action == 'get_role_eligibility_schedules':
+            schedules_url = f"{base_url}/roleManagement/directory/roleEligibilitySchedules"
+            try:
+                role_eligibility_schedules = get_all_pages(schedules_url, headers)
+            except Exception as e:
+                print(f"Failed to fetch role eligibility schedules: {str(e)}")
+                return jsonify({"error": "Failed to fetch role eligibility schedules"}), 500
+
+            processed_schedules = []
+            for schedule in role_eligibility_schedules:
+                processed_schedule = {
+                    "id": schedule.get("id"),
+                    "principalId": schedule.get("principalId"),
+                    "roleDefinitionId": schedule.get("roleDefinitionId"),
+                    "directoryScopeId": schedule.get("directoryScopeId"),
+                    "startDateTime": schedule.get("scheduleInfo", {}).get("startDateTime"),
+                    "expiration": schedule.get("scheduleInfo", {}).get("expiration", {})
+                }
+                processed_schedules.append(processed_schedule)
+
+            return jsonify({
+                "totalSchedules": len(processed_schedules),
+                "roleEligibilitySchedules": processed_schedules
+            })
+
+            return jsonify({
+                "totalSchedules": len(processed_schedules),
+                "roleEligibilitySchedules": processed_schedules
+            })
+
         elif action == 'get_synced_objects':
             users_url = f"{base_url}/users?$select=id,displayName,userPrincipalName,onPremisesSecurityIdentifier"
             all_users = get_all_pages(users_url, headers)
@@ -514,8 +556,6 @@ def graph_action(action, token_id):
                 "all_assignments": all_app_role_assignments,
                 "graph_assignments": graph_assignments
             })
-
-
 
         elif action == 'check_expiring_app_passwords':
             applications_url = f"{base_url}/applications?$select=appId,id,passwordCredentials"
@@ -627,9 +667,9 @@ def graph_action(action, token_id):
 
 @app.route('/device_code_auth', methods=['POST'])
 def device_code_auth():
-    client_id = request.form['client_id']
-    tenant = request.form['tenant']
-    scope = request.form['scope']
+    client_id = request.form.get('client_id')
+    tenant = request.form.get('tenant')
+    scope = request.form.get('scope')
 
     url = f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/devicecode"
     data = {
@@ -654,8 +694,19 @@ def get_tokens_table():
     ORDER BY CASE WHEN token_type = 'access_token' THEN 0 ELSE 1 END, expiration DESC
     ''', (current_time,)).fetchall()
     conn.close()
-    return render_template('tokens_table.html', tokens=tokens, current_time=aware_utcnow(),
-                           datetime=datetime, timedelta=timedelta)
+
+    token_list = []
+    for token in tokens:
+        token_dict = dict(token)
+        if token_dict['expiration']:
+            token_dict['expiration'] = datetime.fromtimestamp(token_dict['expiration'])
+        token_dict['user'] = token_dict.get('email') or token_dict.get('user')
+        token_list.append(token_dict)
+
+    return render_template('tokens_table.html',
+                           tokens=token_list,
+                           current_time=datetime.utcnow(),
+                           timedelta=timedelta)
 
 @app.route('/generate_from_refresh', methods=['POST'])
 def generate_from_refresh():
@@ -673,9 +724,9 @@ def generate_from_refresh():
 
 @app.route('/poll_for_token', methods=['POST'])
 def poll_for_token():
-    client_id = request.form['client_id']
-    device_code = request.form['device_code']
-    tenant = request.form['tenant']
+    client_id = request.form.get('client_id')
+    device_code = request.form.get('device_code')
+    tenant = request.form.get('tenant')
 
     url = f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token"
     data = {

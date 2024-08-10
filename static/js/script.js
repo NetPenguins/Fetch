@@ -1,3 +1,7 @@
+let isPollingCancelled = false
+let pollInterval = null;
+
+
 // Utility functions
 function showSection(sectionId) {
     document.querySelectorAll('.action-section').forEach(section => {
@@ -15,17 +19,47 @@ function updateTime() {
     document.getElementById('currentTime').textContent = new Date().toUTCString();
 }
 
-function showNotification(message, type) {
+let currentNotification = null;
+let notificationTimeout = null;
+
+function showNotification(message, type, duration = 5000) {
+    // Clear any existing notification
+    if (currentNotification) {
+        currentNotification.remove();
+        clearTimeout(notificationTimeout);
+    }
+
+    // Create new notification
     const notification = document.createElement('div');
-    notification.className = `alert alert-${type} alert-dismissible fade show`;
+    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3`;
+    notification.style.zIndex = '1050';  // Ensure it's above other elements
     notification.role = 'alert';
     notification.innerHTML = `
         ${message}
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     `;
-    document.body.insertBefore(notification, document.body.firstChild);
-    setTimeout(() => notification.remove(), 5000);
+
+    // Add notification to the DOM
+    document.body.appendChild(notification);
+    currentNotification = notification;
+
+    // Set up auto-dismiss
+    notificationTimeout = setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => notification.remove(), 150);  // 150ms for fade out animation
+        currentNotification = null;
+    }, duration);
+
+    // Set up manual dismiss
+    notification.querySelector('.btn-close').addEventListener('click', () => {
+        clearTimeout(notificationTimeout);
+        notification.classList.remove('show');
+        setTimeout(() => notification.remove(), 150);
+        currentNotification = null;
+    });
 }
+
+
 
 function fetchPostRequest(url, data) {
     return fetch(url, {
@@ -36,6 +70,7 @@ function fetchPostRequest(url, data) {
         body: new URLSearchParams(data)
     }).then(response => response.json());
 }
+
 
 // Token operations
 function copyToken(tokenId) {
@@ -159,7 +194,6 @@ function storeToken(token, tokenType, tenantId, user, source) {
     })
     .then(data => {
         if (data.success) {
-            console.log('Token stored successfully');
             refreshTokenTable();
             showNotification('Token stored successfully', 'success');
         } else {
@@ -223,16 +257,19 @@ function pollForToken(clientId, deviceCode, tenant, interval) {
         .then(data => {
             if (data.status === 'success') {
                 clearInterval(pollInterval);
-                showNotification('Authentication successful!', 'success');
+                showNotification(data.message, 'success');
                 storeToken(data.access_token, 'access_token', tenant, null, 'Device Code Flow');
                 if (data.refresh_token) {
                     storeToken(data.refresh_token, 'refresh_token', tenant, null, 'Device Code Flow');
                 }
                 resetDeviceCodeUI();
                 refreshTokenTable();
+                closeDeviceCodeModal(); // New function to close the modal
+            } else if (data.status === 'pending') {
+                console.log(data.message); // Optional: update UI to show waiting message
             } else if (data.status === 'error') {
                 clearInterval(pollInterval);
-                showNotification('Error: ' + data.error, 'error');
+                showNotification('Error: ' + data.message, 'error');
                 resetDeviceCodeUI();
             }
         })
@@ -240,15 +277,30 @@ function pollForToken(clientId, deviceCode, tenant, interval) {
             console.error('Error:', error);
             clearInterval(pollInterval);
             showNotification('An error occurred while polling for token', 'error');
+            resetDeviceCodeUI();
         });
     }, interval * 1000);
 }
+
 
 function resetDeviceCodeUI() {
     document.getElementById('cancelDeviceCodeAuth').style.display = 'none';
     document.getElementById('deviceCodeMessage').textContent = '';
     document.getElementById('deviceCodeUserCode').textContent = '';
+    isPollingCancelled = false; // Reset the polling cancellation flag
 }
+
+function closeDeviceCodeModal() {
+    const modal = document.getElementById('deviceCodeAuthModal');
+    if (modal) {
+        const bootstrapModal = bootstrap.Modal.getInstance(modal);
+        if (bootstrapModal) {
+            bootstrapModal.hide();
+        }
+    }
+}
+
+
 
 function cancelDeviceCodeAuth() {
     isPollingCancelled = true;
@@ -286,7 +338,6 @@ function handleRequestTokenPassword(e) {
             if (data.refresh_token) {
                 storeToken(data.refresh_token, 'refresh_token', tenant, formData.get('username'), 'Password Grant');
             }
-            showNotification('Tokens generated and stored successfully!', 'success');
             refreshTokenTable();
         } else {
            showNotification('Failed to generate token: ' + (data.error || 'Unknown error'), 'error');
@@ -316,7 +367,6 @@ function handleRequestTokenSecret(e) {
     })
     .then(data => {
         if (data.success) {
-            showNotification('Token generated successfully!', 'success');
             updateTokenResult(data);
             storeToken(data.access_token, 'access_token', formData.get('tenant'), null, 'Client Secret Auth');
             closeModal('clientSecretAuthModal');
@@ -503,6 +553,15 @@ function handleInsertToken(e) {
                 showNotification('Token inserted successfully', 'success');
                 document.getElementById('token').value = '';
                 refreshTokenTable();
+
+                // Close the modal if it exists
+                const modal = bootstrap.Modal.getInstance(document.getElementById('insertTokenModal'));
+                if (modal) {
+                    modal.hide();
+                }
+
+                // Alternatively, if you want to redirect to another page:
+                // window.location.href = '/some-other-page';
             } else {
                 showNotification('Failed to insert token: ' + data.error, 'error');
             }
@@ -512,24 +571,43 @@ function handleInsertToken(e) {
 
 function refreshTokenTable() {
     console.log('Refreshing token table...');
-    fetch('/get_tokens_table')
-        .then(response => response.text())
+    fetch('/')  // Fetch the entire index page
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.text();
+        })
         .then(html => {
-            console.log('Received new table HTML');
+            console.log('Received new index HTML');
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
             const newTable = doc.querySelector('.table-responsive');
             if (newTable) {
                 console.log('Updating table content');
                 document.querySelector('.table-responsive').outerHTML = newTable.outerHTML;
-                initializeTokenTableEvents(); // Make sure this line is here
+                // Re-initialize event listeners if necessary
+                initializeTokenTableEvents();
                 console.log('Table refresh complete');
             } else {
                 console.error('New table content not found in response');
+                console.log('Response HTML:', html);
+                throw new Error('New table content not found in response');
+            }
+
+            // Update current time
+            const newCurrentTime = doc.getElementById('currentTime');
+            if (newCurrentTime) {
+                document.getElementById('currentTime').textContent = newCurrentTime.textContent;
             }
         })
-        .catch(error => handleFetchError(error, 'Failed to refresh token table'));
+        .catch(error => {
+            console.error('Error refreshing token table:', error);
+            showNotification('Failed to refresh token table', 'error');
+        });
 }
+
+
 
 function generateFromRefreshToken(refreshTokenId) {
     const clientId = prompt("Please enter the client ID:");
@@ -546,7 +624,7 @@ function generateFromRefreshToken(refreshTokenId) {
     .then(data => {
         if (data.success) {
             showNotification('New access token generated successfully', 'success');
-            refreshTokenTable();
+            // refreshTokenTable();
         } else {
             showNotification('Failed to generate new access token: ' + data.error, 'error');
         }
