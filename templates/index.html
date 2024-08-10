@@ -4,13 +4,14 @@
 <div class="container mt-4">
     <div class="table-responsive">
         <table class="table table-striped table-hover">
-            <thead class="table-success">
+            <thead>
                 <tr>
+                    <th>ID</th>
                     <th>Type</th>
                     <th>User/App</th>
                     <th>Audience</th>
+                    <th>Source</th>
                     <th>Expiration</th>
-                    <th>Tenant ID</th>
                     <th>Time Left</th>
                     <th>Actions</th>
                 </tr>
@@ -18,43 +19,42 @@
             <tbody>
                 {% for token in tokens %}
                 <tr data-token-id="{{ token.id }}">
-                    <td><span class="badge {{ 'bg-primary' if token.token_type == 'access_token' else 'bg-secondary' }}">{{ token.token_type }}</span></td>
+                    <td>{{ token.id }}</td>
+                    <td><span class="badge {% if token.token_type == 'access_token' %}bg-primary{% else %}bg-secondary{% endif %}">{{ token.token_type }}</span></td>
                     <td>{{ token.email or token.user or 'N/A' }}</td>
                     <td>{{ token.audience or 'N/A' }}</td>
+                    <td>{{ token.source or 'N/A' }}</td>
                     <td>{{ token.expiration | format_datetime if token.expiration else 'N/A' }}</td>
-                    <td>{{ token.tenant_id or 'N/A' }}</td>
-                        <td>
-        {% if token.time_left and token.token_type == 'access_token' %}
-            {% if token.time_left > 0 %}
-                <span class="badge bg-{% if token.time_left > 3600 %}success{% elif token.time_left > 300 %}warning{% else %}danger{% endif %}">
-                    {{ timedelta(seconds=token.time_left) }}
-                </span>
-            {% else %}
-                <span class="badge bg-secondary">Expired</span>
-            {% endif %}
-        {% else %}
-            N/A
-        {% endif %}
-    </td>
-
                     <td>
-                        {% if token.token_type == 'access_token' %}
-                            <button class="btn btn-sm btn-outline-primary show-token-details-btn" data-token-id="{{ token.id }}">Details</button>
+                        {% if token.time_left is not none and token.token_type == 'access_token' %}
+                            {% if token.time_left > 0 %}
+                                <span class="badge bg-{% if token.time_left > 3600 %}success{% elif token.time_left > 300 %}warning{% else %}danger{% endif %}">
+                                    {{ timedelta(seconds=token.time_left) }}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary">Expired</span>
+                            {% endif %}
+                        {% else %}
+                            N/A
                         {% endif %}
-                        {% if token.token_type == 'refresh_token' %}
-                            <button class="btn btn-sm btn-outline-secondary generate-access-token-btn" data-token-id="{{ token.id }}">Generate Access Token</button>
-                        {% endif %}
-                        <button class="btn btn-sm btn-outline-secondary copy-token-btn" data-token-id="{{ token.id }}">Copy</button>
-                        <button class="btn btn-sm btn-outline-danger delete-token-btn" data-token-id="{{ token.id }}">Delete</button>
                     </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+                    <td>
+                    <button class="btn btn-sm btn-primary copy-token-btn" data-token-id="{{ token.id }}">Copy</button>
+                    <button class="btn btn-sm btn-info show-token-details-btn" data-token-id="{{ token.id }}">Details</button>
+                    {% if token.token_type == 'refresh_token' %}
+                    <button class="btn btn-sm btn-success generate-access-token-btn" data-token-id="{{ token.id }}">Generate Access Token</button>
+                    {% endif %}
+                    <button class="btn btn-sm btn-danger delete-token-btn" data-token-id="{{ token.id }}">Delete</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<p>Current time: <span id="currentTime">{{ current_time.strftime('%Y-%m-%d %H:%M:%S UTC') }}</span></p>
 </div>
 
-<!-- Token Details Modal (only for access tokens) -->
+<!-- Token Details Modal -->
 <div class="modal fade" id="tokenDetailsModal" tabindex="-1" aria-labelledby="tokenDetailsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -64,11 +64,9 @@
             </div>
             <div class="modal-body">
                 <h6>Highlighted Claims</h6>
-                <table class="table table-sm">
-                    <tbody id="highlightedClaimsTable"></tbody>
-                </table>
+                <pre class="bg-light p-3 rounded"><code id="highlightedClaims"></code></pre>
                 <h6>Full Decoded Token</h6>
-                <pre id="fullDecodedToken" class="bg-light p-3 rounded"></pre>
+                <pre id="fullDecodedToken" class="bg-light p-3 rounded"><code></code></pre>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -77,7 +75,6 @@
         </div>
     </div>
 </div>
-
 {% endblock %}
 
 {% block extra_js %}
