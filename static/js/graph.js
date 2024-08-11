@@ -12,6 +12,7 @@ const CURRENT_TIME_ID = 'currentTime';
 
 // Global state
 let GRAPH_ENDPOINTS = null;
+let FLATTENED_ENDPOINTS = null;
 
 // DOM Elements
 const tokenSelect = document.getElementById(TOKEN_SELECT_ID);
@@ -23,10 +24,27 @@ const enumerateBtn = document.getElementById(ENUMERATE_BTN_ID);
 // Event Listeners
 document.addEventListener('DOMContentLoaded', initializeApp);
 
+
+
+function flattenEndpoints(endpoints, prefix = '') {
+    return Object.entries(endpoints).reduce((acc, [key, value]) => {
+        const newKey = prefix ? `${prefix}.${key}` : key;
+        if (value.path) {
+            // This is an endpoint
+            acc[newKey] = value;
+        } else {
+            // This is a nested object, recurse
+            Object.assign(acc, flattenEndpoints(value, newKey));
+        }
+        return acc;
+    }, {});
+}
+
 // Main initialization function
 async function initializeApp() {
     try {
         GRAPH_ENDPOINTS = await loadEndpointsData();
+        FLATTENED_ENDPOINTS = flattenEndpoints(GRAPH_ENDPOINTS);
         createEndpointsList(GRAPH_ENDPOINTS);
         setupEventListeners();
         updateCurrentTime();
@@ -452,8 +470,16 @@ function getSelectedTokenAudience() {
 }
 
 
+
 async function enumerateGraph() {
     console.log("Starting enumeration...");
+
+    if (!FLATTENED_ENDPOINTS) {
+        console.error("FLATTENED_ENDPOINTS is not initialized");
+        alert("Application is not fully initialized. Please try again in a moment.");
+        return;
+    }
+
     const tokenSelect = document.getElementById('tokenSelect');
     const selectedOption = tokenSelect.options[tokenSelect.selectedIndex];
 
@@ -479,8 +505,11 @@ async function enumerateGraph() {
 
     // Filter endpoints based on audience
     const validEndpoints = selectedEndpoints.filter(endpoint => {
-        const [category, subCategory] = endpoint.split('.');
-        const endpointData = GRAPH_ENDPOINTS[category][subCategory];
+        const endpointData = FLATTENED_ENDPOINTS[endpoint];
+        if (!endpointData) {
+            console.warn(`Endpoint ${endpoint} not found in FLATTENED_ENDPOINTS`);
+            return false;
+        }
         console.log(`Checking endpoint: ${endpoint}`);
         console.log(`Endpoint audience:`, endpointData.audience);
         console.log(`Token audience: ${tokenAudience}`);
