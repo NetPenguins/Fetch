@@ -926,6 +926,45 @@ def get_user_data(action):
 # Add a similar route for service principals
 @app.route('/api/servicePrincipals/<action>', methods=['GET', 'POST'])
 def get_service_principal_data(action):
-    # Similar implementation as get_user_data, but for service principals
-    # You'll need to adjust the action_urls and handling accordingly
-    pass
+    token_id = request.args.get('token_id')
+    service_principal_id = request.args.get('user_id')  # Note: It's called 'user_id' in the query, but it's actually the service principal ID
+
+    if not service_principal_id:
+        return jsonify({"error": "Service Principal ID is required"}), 400
+
+    conn = get_db_connection()
+    token = conn.execute('SELECT token FROM tokens WHERE id = ? AND token_type = "access_token"',
+                         (token_id,)).fetchone()
+    conn.close()
+
+    if not token:
+        return jsonify({"error": "Token not found"}), 404
+
+    access_token = token['token']
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+
+    base_url = "https://graph.microsoft.com/v1.0"
+
+    try:
+        if action == 'memberOf':
+            url = f"{base_url}/servicePrincipals/{service_principal_id}/memberOf"
+            response = requests.get(url, headers=headers)
+        elif action == 'getMemberGroups':
+            url = f"{base_url}/servicePrincipals/{service_principal_id}/getMemberGroups"
+            body = {"securityEnabledOnly": False}
+            response = requests.post(url, headers=headers, json=body)
+        else:
+            return jsonify({"error": f"Invalid action: {action}"}), 400
+
+        response.raise_for_status()
+        return jsonify(response.json())
+
+    except requests.exceptions.RequestException as e:
+        app.logger.error(f"Error in get_service_principal_data: {str(e)}")
+        error_message = str(e)
+        if e.response is not None:
+            error_message = e.response.text
+        return jsonify({"error": f"Error fetching data: {error_message}"}), 500
