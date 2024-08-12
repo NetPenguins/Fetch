@@ -762,3 +762,170 @@ def format_datetime(value, format='%Y-%m-%d %H:%M:%S UTC'):
     if isinstance(value, int):
         value = aware_utcfromtimestamp(value)
     return value.strftime(format)
+
+
+@app.route('/object_analyzer')
+def object_analyzer():
+    conn = get_db_connection()
+    access_tokens = conn.execute(
+        'SELECT id, oid, audience, email FROM tokens WHERE token_type = "access_token"').fetchall()
+    conn.close()
+    current_time = aware_utcnow()
+    return render_template('object_analyzer.html',
+                           access_tokens=access_tokens,
+                           current_time=current_time)
+
+
+@app.route('/api/<object_type>')
+@app.route('/api/<object_type>/<action>')
+def get_objects(object_type, action=None):
+    token_id = request.args.get('token_id')
+    conn = get_db_connection()
+    token = conn.execute('SELECT token FROM tokens WHERE id = ? AND token_type = "access_token"',
+                         (token_id,)).fetchone()
+    conn.close()
+
+    if not token:
+        return jsonify({"error": "Token not found"}), 404
+
+    access_token = token['token']
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+
+    base_url = "https://graph.microsoft.com/v1.0"
+
+    if object_type == 'users':
+        if action is None or action == 'list':
+            url = f"{base_url}/users"
+        elif action == 'guest':
+            url = f"{base_url}/users?$filter=userType eq 'Guest'"
+        elif action == 'licensed':
+            url = f"{base_url}/users?$filter=assignedLicenses/$count ne 0"
+        else:
+            return jsonify({"error": "Invalid action for users"}), 400
+    elif object_type == 'groups':
+        if action is None or action == 'list':
+            url = f"{base_url}/groups"
+        elif action == 'security':
+            url = f"{base_url}/groups?$filter=securityEnabled eq true"
+        elif action == 'm365':
+            url = f"{base_url}/groups?$filter=groupTypes/any(c:c eq 'Unified')"
+        else:
+            return jsonify({"error": "Invalid action for groups"}), 400
+    elif object_type == 'servicePrincipals':
+        if action is None or action == 'list':
+            url = f"{base_url}/servicePrincipals"
+        elif action == 'app':
+            url = f"{base_url}/servicePrincipals?$filter=servicePrincipalType eq 'Application'"
+        elif action == 'managed':
+            url = f"{base_url}/servicePrincipals?$filter=servicePrincipalType eq 'ManagedIdentity'"
+        else:
+            return jsonify({"error": "Invalid action for servicePrincipals"}), 400
+    else:
+        return jsonify({"error": "Invalid object type"}), 400
+
+    try:
+        objects = get_all_pages(url, headers)
+        return jsonify(objects)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/users')
+def get_users():
+    token_id = request.args.get('token_id')
+    if not token_id:
+        return jsonify({"error": "Token ID is required"}), 400
+
+    try:
+        conn = get_db_connection()
+        token = conn.execute('SELECT token FROM tokens WHERE id = ? AND token_type = "access_token"',
+                             (token_id,)).fetchone()
+        conn.close()
+
+        if not token:
+            return jsonify({"error": "Token not found"}), 404
+
+        access_token = token['token']
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+
+        base_url = "https://graph.microsoft.com/v1.0"
+        url = f"{base_url}/users"
+
+        users = get_all_pages(url, headers)
+        return jsonify(users)
+    except Exception as e:
+        app.logger.error(f"Error in get_users: {str(e)}")
+        return jsonify({"error": f"An error occurred: {str(e)}"}), 500
+
+
+@app.route('/api/users/<action>', methods=['GET', 'POST'])
+def get_user_data(action):
+    token_id = request.args.get('token_id')
+    user_id = request.args.get('user_id')
+
+    if not user_id:
+        return jsonify({"error": "User ID is required"}), 400
+
+    conn = get_db_connection()
+    token = conn.execute('SELECT token FROM tokens WHERE id = ? AND token_type = "access_token"',
+                         (token_id,)).fetchone()
+    conn.close()
+
+    if not token:
+        return jsonify({"error": "Token not found"}), 404
+
+    access_token = token['token']
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+
+    base_url = "https://graph.microsoft.com/v1.0"
+
+    action_urls = {
+        "appRoleAssignments": f"{base_url}/users/{user_id}/appRoleAssignments",
+        "calendars": f"{base_url}/users/{user_id}/calendars",
+        "oauth2PermissionGrants": f"{base_url}/users/{user_id}/oauth2PermissionGrants",
+        "ownedDevices": f"{base_url}/users/{user_id}/ownedDevices",
+        "ownedObjects": f"{base_url}/users/{user_id}/ownedObjects",
+        "registeredDevices": f"{base_url}/users/{user_id}/registeredDevices",
+        "notebooks": f"{base_url}/users/{user_id}/onenote/notebooks",
+        "directReports": f"{base_url}/users/{user_id}/directReports",
+        "people": f"{base_url}/users/{user_id}/people",
+        "contacts": f"{base_url}/users/{user_id}/contacts",
+        "plannerTasks": f"{base_url}/users/{user_id}/planner/tasks",
+        "sponsors": f"{base_url}/users/{user_id}/sponsors",
+        "memberOf": f"{base_url}/users/{user_id}/memberOf",
+        "getMemberGroups": f"{base_url}/users/{user_id}/getMemberGroups"
+    }
+
+    if action not in action_urls:
+        return jsonify({"error": f"Invalid action: {action}"}), 400
+
+    url = action_urls[action]
+
+    try:
+        if action == "getMemberGroups":
+            # This is a POST request
+            security_enabled_only = request.json.get('securityEnabledOnly', False)
+            response = requests.post(url, headers=headers, json={"securityEnabledOnly": security_enabled_only})
+            response.raise_for_status()
+            return jsonify(response.json())
+        else:
+            data = get_all_pages(url, headers)
+            return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Add a similar route for service principals
+@app.route('/api/servicePrincipals/<action>', methods=['GET', 'POST'])
+def get_service_principal_data(action):
+    # Similar implementation as get_user_data, but for service principals
+    # You'll need to adjust the action_urls and handling accordingly
+    pass

@@ -1,75 +1,164 @@
-let isPollingCancelled = false
-let pollInterval = null;
+// Use strict mode for better error catching and performance
+'use strict';
 
+document.addEventListener('DOMContentLoaded', initializeApp);
 
-// Utility functions
-function showSection(sectionId) {
-    document.querySelectorAll('.action-section').forEach(section => {
-        section.style.display = 'none';
+function initializeApp() {
+    initializeEventListeners();
+    updateTime();
+    setInterval(updateTime, 1000);
+    parseIdToken();
+    initializeTokenTableEvents();
+}
+
+function initializeEventListeners() {
+    const eventMap = {
+        'insertTokenForm': { event: 'submit', handler: handleInsertToken },
+        'passwordAuthForm': { event: 'submit', handler: handleRequestTokenPassword },
+        'clientSecretAuthForm': { event: 'submit', handler: handleRequestTokenSecret },
+        'implicitGrantAuthForm': { event: 'submit', handler: handleImplicitGrantAuth },
+        'deviceCodeAuthForm': { event: 'submit', handler: handleDeviceCodeAuth },
+        'cancelDeviceCodeAuth': { event: 'click', handler: cancelDeviceCodeAuth },
+        'deviceCodeClientId': { event: 'change', handler: (e) => toggleCustomClientId(e.target, 'customClientIdGroup1') },
+        'queryTenantForm': { event: 'submit', handler: handleQueryTenant },
+        'requestTokenCertificateForm': { event: 'submit', handler: handleRequestTokenCertificate },
+        'insertRefreshTokenForm': { event: 'submit', handler: handleInsertRefreshToken },
+        'clientIdSelect1': { event: 'change', handler: (e) => toggleCustomClientId(e.target, 'customClientIdGroup2') },
+        'passwordClientId': { event: 'change', handler: (e) => toggleCustomClientId(e.target, 'customClientIdGroup3') },
+        'copyFullTokenBtn': { event: 'click', handler: copyFullDecodedToken }
+    };
+
+    Object.entries(eventMap).forEach(([id, { event, handler }]) => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.addEventListener(event, handler);
+        } else {
+            console.warn(`Element with id "${id}" not found. Skipping event listener.`);
+        }
     });
+
+
+    // Use event delegation for dynamic elements
+    document.body.addEventListener('click', (e) => {
+        if (e.target.matches('[data-section]')) {
+            e.preventDefault();
+            showSection(e.target.dataset.section);
+        } else if (e.target.matches('.copy-token-btn')) {
+            const tokenText = e.target.closest('.token-display').querySelector('pre').textContent;
+            copyToClipboard(tokenText);
+        }
+    });
+}
+
+// Simplified updateTime function
+function updateTime() {
+    document.getElementById('currentTime').textContent = new Date().toUTCString();
+}
+
+const parseIdToken = () => {
+    const hash = window.location.hash.substr(1);
+    const result = Object.fromEntries(new URLSearchParams(hash));
+    if (result.id_token) {
+        console.log("ID Token:", result.id_token);
+        // Validate and store the token
+    }
+};
+
+function initializeTokenTableEvents() {
+    const tokenTable = document.querySelector('.table-responsive');
+    if (tokenTable) {
+        tokenTable.addEventListener('click', handleTokenTableClick);
+    }
+}
+
+function handleTokenTableClick(e) {
+    const target = e.target;
+    if (!target.classList.contains('btn')) return;
+
+    e.preventDefault();
+    const tokenId = target.dataset.tokenId;
+    const action = target.classList.contains('delete-token-btn') ? deleteToken :
+                   target.classList.contains('show-token-details-btn') ? showTokenDetails :
+                   target.classList.contains('copy-token-btn') ? copyToken :
+                   target.classList.contains('generate-access-token-btn') ? generateFromRefreshToken :
+                   null;
+
+    if (action) action(tokenId, e);
+}
+
+const showSection = (sectionId) => {
+    document.querySelectorAll('.action-section').forEach(section => section.style.display = 'none');
     const selectedSection = document.getElementById(sectionId);
     if (selectedSection) {
         selectedSection.style.display = 'block';
     } else {
         console.error(`Section with id ${sectionId} not found`);
     }
-}
+};
 
-function updateTime() {
-    document.getElementById('currentTime').textContent = new Date().toUTCString();
-}
-
-let currentNotification = null;
-let notificationTimeout = null;
-
-function showNotification(message, type, duration = 5000) {
-    // Clear any existing notification
-    if (currentNotification) {
-        currentNotification.remove();
-        clearTimeout(notificationTimeout);
+async function copyToClipboard(text) {
+    try {
+        await navigator.clipboard.writeText(text);
+        showNotification('Copied to clipboard', 'success');
+    } catch (err) {
+        console.error('Failed to copy: ', err);
+        showNotification('Failed to copy to clipboard', 'error');
     }
+}
 
-    // Create new notification
+const showNotification = (message, type, duration = 5000) => {
     const notification = document.createElement('div');
     notification.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3`;
-    notification.style.zIndex = '1050';  // Ensure it's above other elements
-    notification.role = 'alert';
+    notification.style.zIndex = '1050';
     notification.innerHTML = `
         ${message}
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     `;
-
-    // Add notification to the DOM
     document.body.appendChild(notification);
-    currentNotification = notification;
+    setTimeout(() => notification.remove(), duration);
+};
 
-    // Set up auto-dismiss
-    notificationTimeout = setTimeout(() => {
-        notification.classList.remove('show');
-        setTimeout(() => notification.remove(), 150);  // 150ms for fade out animation
-        currentNotification = null;
-    }, duration);
 
-    // Set up manual dismiss
-    notification.querySelector('.btn-close').addEventListener('click', () => {
-        clearTimeout(notificationTimeout);
-        notification.classList.remove('show');
-        setTimeout(() => notification.remove(), 150);
-        currentNotification = null;
-    });
+async function fetchPostRequest(url, data) {
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams(data)
+        });
+        return await response.json();
+    } catch (error) {
+        console.error('Fetch error:', error);
+        throw error;
+    }
+}
+
+async function handleInsertToken(e) {
+    e.preventDefault();
+    const token = document.getElementById('token').value;
+    try {
+        const data = await fetchPostRequest('/insert_token', { token });
+        if (data.success) {
+            showNotification('Token inserted successfully', 'success');
+            document.getElementById('token').value = '';
+            await refreshTokenTable();
+            bootstrap.Modal.getInstance(document.getElementById('insertTokenModal'))?.hide();
+        } else {
+            throw new Error(data.error);
+        }
+    } catch (error) {
+        showNotification('Failed to insert token: ' + error.message, 'error');
+    }
 }
 
 
 
-function fetchPostRequest(url, data) {
-    return fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams(data)
-    }).then(response => response.json());
-}
+
+let isPollingCancelled = false
+let pollInterval = null;
+
+let currentNotification = null;
+let notificationTimeout = null;
 
 
 // Token operations
@@ -125,6 +214,7 @@ function showTokenDetails(tokenId) {
             showNotification('An error occurred while fetching token details: ' + error.message, 'error');
         });
 }
+
 
 
 function tokenTableEventHandler(e) {
@@ -447,19 +537,19 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeTokenTableEvents();
 });
 
-function initializeEventListeners() {
-    function generateRandomString() {
-        return Math.random().toString(36).substring(2, 15);
-    }
-
-    function setElementValue(id, value) {
-        const element = document.getElementById(id);
-        if (element) {
-            element.value = value;
-        } else {
-            console.warn(`Element with id '${id}' not found`);
+    function initializeEventListeners() {
+        function generateRandomString() {
+            return Math.random().toString(36).substring(2, 15);
         }
-    }
+
+        function setElementValue(id, value) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.value = value;
+            } else {
+                console.warn(`Element with id '${id}' not found`);
+            }
+        }
 
 
     document.getElementById('insertTokenForm')?.addEventListener('submit', handleInsertToken);
@@ -521,91 +611,31 @@ function copyClientToken() {
     }
 }
 
-function parseIdToken() {
-    const hash = window.location.hash.substr(1);
-    const result = hash.split('&').reduce((result, item) => {
-        const [key, value] = item.split('=');
-        result[key] = value;
-        return result;
-    }, {});
-    if (result.id_token) {
-        console.log("ID Token:", result.id_token);
-        // Here you might want to validate and store the token
+
+async function refreshTokenTable() {
+    try {
+        const response = await fetch('/');
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const html = await response.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const newTable = doc.querySelector('.table-responsive');
+        if (newTable) {
+            document.querySelector('.table-responsive').outerHTML = newTable.outerHTML;
+            initializeTokenTableEvents();
+        } else {
+            throw new Error('New table content not found in response');
+        }
+        const newCurrentTime = doc.getElementById('currentTime');
+        if (newCurrentTime) {
+            document.getElementById('currentTime').textContent = newCurrentTime.textContent;
+        }
+    } catch (error) {
+        console.error('Error refreshing token table:', error);
+        showNotification('Failed to refresh token table', 'error');
     }
 }
 
-function copyToClipboard(text) {
-    return navigator.clipboard.writeText(text)
-        .then(() => showNotification('Copied to clipboard', 'success'))
-        .catch(err => {
-            console.error('Failed to copy: ', err);
-            showNotification('Failed to copy to clipboard', 'error');
-        });
-}
-
-function handleInsertToken(e) {
-    e.preventDefault();
-    const token = document.getElementById('token').value;
-
-    fetchPostRequest('/insert_token', { token: token })
-        .then(data => {
-            if (data.success) {
-                showNotification('Token inserted successfully', 'success');
-                document.getElementById('token').value = '';
-                refreshTokenTable();
-
-                // Close the modal if it exists
-                const modal = bootstrap.Modal.getInstance(document.getElementById('insertTokenModal'));
-                if (modal) {
-                    modal.hide();
-                }
-
-                // Alternatively, if you want to redirect to another page:
-                // window.location.href = '/some-other-page';
-            } else {
-                showNotification('Failed to insert token: ' + data.error, 'error');
-            }
-        })
-        .catch(error => handleFetchError(error, 'An error occurred while inserting the token'));
-}
-
-function refreshTokenTable() {
-    console.log('Refreshing token table...');
-    fetch('/')  // Fetch the entire index page
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.text();
-        })
-        .then(html => {
-            console.log('Received new index HTML');
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            const newTable = doc.querySelector('.table-responsive');
-            if (newTable) {
-                console.log('Updating table content');
-                document.querySelector('.table-responsive').outerHTML = newTable.outerHTML;
-                // Re-initialize event listeners if necessary
-                initializeTokenTableEvents();
-                console.log('Table refresh complete');
-            } else {
-                console.error('New table content not found in response');
-                console.log('Response HTML:', html);
-                throw new Error('New table content not found in response');
-            }
-
-            // Update current time
-            const newCurrentTime = doc.getElementById('currentTime');
-            if (newCurrentTime) {
-                document.getElementById('currentTime').textContent = newCurrentTime.textContent;
-            }
-        })
-        .catch(error => {
-            console.error('Error refreshing token table:', error);
-            showNotification('Failed to refresh token table', 'error');
-        });
-}
 
 
 
@@ -698,13 +728,6 @@ function handleQueryTenant(e) {
 function handleFetchError(error, customMessage) {
     console.error('Fetch error:', error);
     showNotification(customMessage || 'An error occurred while processing your request', 'error');
-}
-
-function initializeTokenTableEvents() {
-    const tokenTable = document.querySelector('.table-responsive');
-    if (tokenTable) {
-        tokenTable.addEventListener('click', tokenTableEventHandler);
-    }
 }
 
 // Call this function after the DOM is loaded

@@ -28,6 +28,10 @@
                     <a class="nav-link {% if request.endpoint == 'db_analyzer' %}active{% endif %}" href="{{ url_for('db_analyzer') }}">Anomaly Search</a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'object_analyzer' %}active{% endif %}" href="{{ url_for('object_analyzer') }}">Object Analyzer</a>
+                </li>
+
+                <li class="nav-item">
                     <a class="nav-link {% if request.endpoint == 'guides' %}active{% endif %}" href="{{ url_for('guides') }}">Guides</a>
                 </li>
                 <li class="nav-item dropdown">
