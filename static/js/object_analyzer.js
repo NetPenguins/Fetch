@@ -12,6 +12,9 @@ document.addEventListener('DOMContentLoaded', function() {
     let objectsCache = {};
     let userNames = {};
 
+    if (objectDropdown) objectDropdown.style.display = 'none';
+
+
     let objectResults = {
         users: {},
         groups: {},
@@ -71,10 +74,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (tokenId) {
             currentObjectType = objectType;
             fetchObjects(tokenId, objectType);
+            // Do not clear results here
         } else {
             alert('Please select an access token first.');
         }
     }
+
+
 
     function fetchTokenScp(tokenId) {
         fetch(`/get_token_permissions/${tokenId}`)
@@ -105,9 +111,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 }, {});
                 initializeObjectDropdown(data, objectType);
                 removeLoading(objectType);
+                // Show the dropdown after data is loaded
+                if (objectDropdown) objectDropdown.style.display = 'block';
             })
             .catch(error => handleFetchError(error, objectType));
     }
+
 
     function handleResponse(response) {
         if (!response.ok) {
@@ -167,6 +176,7 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error initializing Select2:', error);
         }
     }
+
 
     function handleObjectSelection(objectId, objectName, objectType) {
         currentObjectId = objectId;
@@ -444,9 +454,12 @@ function removeLoading(objectType) {
                 servicePrincipals: {}
             };
             userNames = {};
+            // Hide the dropdown when clearing all results
+            if (objectDropdown) objectDropdown.style.display = 'none';
         }
         analyzingObjectInfo.style.display = 'none';
     }
+
 
     function initializeEventListeners() {
         if (accessTokenSelect) {
