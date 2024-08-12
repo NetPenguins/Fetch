@@ -21,41 +21,54 @@ document.addEventListener('DOMContentLoaded', function() {
         servicePrincipals: {}
     };
 
-    const objectTypes = {
-        users: {
-            title: 'Users',
-            icon: 'bi-people-fill',
-            actions: {
-                appRoleAssignments: 'App Role Assignments',
-                calendars: 'Calendars',
-                oauth2PermissionGrants: 'OAuth2 Permission Grants',
-                ownedDevices: 'Owned Devices',
-                ownedObjects: 'Owned Objects',
-                registeredDevices: 'Registered Devices',
-                notebooks: 'OneNote Notebooks',
-                directReports: 'Direct Reports',
-                people: 'People',
-                contacts: 'Contacts',
-                plannerTasks: 'Planner Tasks',
-                sponsors: 'Sponsors',
-                memberOf: 'Member Of',
-                getMemberGroups: 'Get Member Groups'
-            }
-        },
-        groups: {
-            title: 'Groups',
-            icon: 'bi-diagram-3-fill',
-            actions: {}
-        },
-        servicePrincipals: {
-            title: 'Service Principals',
-            icon: 'bi-gear-fill',
-            actions: {
-                memberOf: 'Member Of',
-                getMemberGroups: 'Get Member Groups'
-            }
+const objectTypes = {
+    users: {
+        title: 'Users',
+        icon: 'bi-people-fill',
+        actions: {
+            appRoleAssignments: 'App Role Assignments',
+            calendars: 'Calendars',
+            oauth2PermissionGrants: 'OAuth2 Permission Grants',
+            ownedDevices: 'Owned Devices',
+            ownedObjects: 'Owned Objects',
+            registeredDevices: 'Registered Devices',
+            notebooks: 'OneNote Notebooks',
+            directReports: 'Direct Reports',
+            people: 'People',
+            contacts: 'Contacts',
+            plannerTasks: 'Planner Tasks',
+            sponsors: 'Sponsors',
+            memberOf: 'Member Of',
+            getMemberGroups: 'Get Member Groups'
         }
-    };
+    },
+    groups: {
+        title: 'Groups',
+        icon: 'bi-diagram-3-fill',
+        actions: {}
+    },
+    servicePrincipals: {
+        title: 'Service Principals',
+        icon: 'bi-gear-fill',
+        actions: {
+            details: 'Details',
+            appRoleAssignments: 'App Role Assignments',
+            appRoleAssignedTo: 'App Role Assigned To',
+            oauth2PermissionGrants: 'OAuth2 Permission Grants',
+            delegatedPermissionClassifications: 'Delegated Permission Classifications',
+            owners: 'Owners',
+            claimsMappingPolicies: 'Claims Mapping Policies',
+            homeRealmDiscoveryPolicies: 'Home Realm Discovery Policies',
+            tokenIssuancePolicies: 'Token Issuance Policies',
+            tokenLifetimePolicies: 'Token Lifetime Policies',
+            memberOf: 'Member Of',
+            getMemberGroups: 'Get Member Groups',
+            getMemberObjects: 'Get Member Objects',
+            ownedObjects: 'Owned Objects'
+        }
+    }
+};
+
 
     function handleAccessTokenChange() {
         const tokenId = this.value;
@@ -101,7 +114,11 @@ document.addEventListener('DOMContentLoaded', function() {
     function fetchObjects(tokenId, objectType) {
         console.log('Fetching objects for type:', objectType);
         showLoading(objectType);
-        fetch(`/api/${objectType}?token_id=${tokenId}`)
+        let url = `/api/${objectType}?token_id=${tokenId}`;
+        if (objectType === 'servicePrincipals') {
+            url += '&$select=id,displayName,appId,appOwnerOrganizationId';
+        }
+        fetch(url)
             .then(handleResponse)
             .then(data => {
                 objectsCache = data.reduce((acc, obj) => {
@@ -111,11 +128,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 }, {});
                 initializeObjectDropdown(data, objectType);
                 removeLoading(objectType);
-                // Show the dropdown after data is loaded
                 if (objectDropdown) objectDropdown.style.display = 'block';
             })
             .catch(error => handleFetchError(error, objectType));
     }
+
+
+
 
 
     function handleResponse(response) {
@@ -144,6 +163,11 @@ document.addEventListener('DOMContentLoaded', function() {
         removeLoading(objectType);
     }
 
+    const INTERNAL_ORG_IDS = [
+        "f8cdef31-a31e-4b4a-93e4-5f571e91255a",
+        "cdc5aeea-15c5-4db6-b079-fcadd2505dc2"
+    ];
+
     function initializeObjectDropdown(objects, objectType) {
         if (!objectDropdown) {
             console.error('Object dropdown element not found');
@@ -151,10 +175,27 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         objectDropdown.innerHTML = `<option value="">Select a ${objectType}</option>`;
+
+        // Sort objects, placing external service principals first
+        objects.sort((a, b) => {
+            const aIsExternal = !INTERNAL_ORG_IDS.includes(a.appOwnerOrganizationId);
+            const bIsExternal = !INTERNAL_ORG_IDS.includes(b.appOwnerOrganizationId);
+            if (aIsExternal && !bIsExternal) return -1;
+            if (!aIsExternal && bIsExternal) return 1;
+            return 0;
+        });
+
         objects.forEach(obj => {
             const option = document.createElement('option');
             option.value = obj.id;
+            const isExternal = !INTERNAL_ORG_IDS.includes(obj.appOwnerOrganizationId);
             option.textContent = `${obj.displayName || obj.userPrincipalName || obj.appId} / ${obj.id}`;
+
+            if (isExternal) {
+                option.classList.add('external-ownership');
+                option.textContent += ' (External Ownership)';
+            }
+
             objectDropdown.appendChild(option);
         });
 
@@ -162,7 +203,8 @@ document.addEventListener('DOMContentLoaded', function() {
             $(objectDropdown).select2({
                 placeholder: `Select a ${objectType}`,
                 allowClear: true,
-                width: '100%'
+                width: '100%',
+                templateResult: formatObjectOption
             });
 
             $(objectDropdown).on('change', function() {
@@ -176,6 +218,22 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error initializing Select2:', error);
         }
     }
+
+
+    function formatObjectOption(object) {
+        if (!object.id) {
+            return object.text;
+        }
+        const isExternal = $(object.element).hasClass('external-ownership');
+        const $object = $(
+            `<span>${object.text}</span>`
+        );
+        if (isExternal) {
+            $object.append('<span class="external-ownership-note"> (Not Internal)</span>');
+        }
+        return $object;
+    }
+
 
 
     function handleObjectSelection(objectId, objectName, objectType) {

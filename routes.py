@@ -927,7 +927,7 @@ def get_user_data(action):
 @app.route('/api/servicePrincipals/<action>', methods=['GET', 'POST'])
 def get_service_principal_data(action):
     token_id = request.args.get('token_id')
-    service_principal_id = request.args.get('user_id')  # Note: It's called 'user_id' in the query, but it's actually the service principal ID
+    service_principal_id = request.args.get('user_id')
 
     if not service_principal_id:
         return jsonify({"error": "Service Principal ID is required"}), 400
@@ -947,20 +947,79 @@ def get_service_principal_data(action):
     }
 
     base_url = "https://graph.microsoft.com/v1.0"
+    internal_org_ids = ["f8cdef31-a31e-4b4a-93e4-5f571e91255a", "cdc5aeea-15c5-4db6-b079-fcadd2505dc2"]
 
     try:
-        if action == 'memberOf':
+        # First, get the details of the service principal
+        details_url = f"{base_url}/servicePrincipals/{service_principal_id}"
+        details_response = requests.get(details_url, headers=headers)
+        details_response.raise_for_status()
+        service_principal_details = details_response.json()
+
+        # Check if the appOwnerOrganizationId is in the list of internal org IDs
+        is_external = service_principal_details.get('appOwnerOrganizationId') not in internal_org_ids
+        service_principal_details['isExternalOwnership'] = is_external
+
+        # Then, perform the requested action
+        if action == 'details':
+            result = service_principal_details
+        elif action == 'appRoleAssignments':
+            url = f"{base_url}/servicePrincipals/{service_principal_id}/appRoleAssignments"
+            response = requests.get(url, headers=headers)
+        elif action == 'appRoleAssignedTo':
+            url = f"{base_url}/servicePrincipals/{service_principal_id}/appRoleAssignedTo"
+            response = requests.get(url, headers=headers)
+        elif action == 'oauth2PermissionGrants':
+            url = f"{base_url}/servicePrincipals/{service_principal_id}/oauth2PermissionGrants"
+            response = requests.get(url, headers=headers)
+        elif action == 'delegatedPermissionClassifications':
+            url = f"{base_url}/servicePrincipals/{service_principal_id}/delegatedPermissionClassifications"
+            response = requests.get(url, headers=headers)
+        elif action == 'owners':
+            url = f"{base_url}/servicePrincipals/{service_principal_id}/owners?$select=id,userPrincipalName,displayName"
+            response = requests.get(url, headers=headers)
+        elif action == 'claimsMappingPolicies':
+            url = f"{base_url}/servicePrincipals/{service_principal_id}/claimsMappingPolicies"
+            response = requests.get(url, headers=headers)
+        elif action == 'homeRealmDiscoveryPolicies':
+            url = f"{base_url}/servicePrincipals/{service_principal_id}/homeRealmDiscoveryPolicies"
+            response = requests.get(url, headers=headers)
+        elif action == 'tokenIssuancePolicies':
+            url = f"{base_url}/servicePrincipals/{service_principal_id}/tokenIssuancePolicies"
+            response = requests.get(url, headers=headers)
+        elif action == 'tokenLifetimePolicies':
+            url = f"{base_url}/servicePrincipals/{service_principal_id}/tokenLifetimePolicies"
+            response = requests.get(url, headers=headers)
+        elif action == 'memberOf':
             url = f"{base_url}/servicePrincipals/{service_principal_id}/memberOf"
             response = requests.get(url, headers=headers)
         elif action == 'getMemberGroups':
             url = f"{base_url}/servicePrincipals/{service_principal_id}/getMemberGroups"
             body = {"securityEnabledOnly": False}
             response = requests.post(url, headers=headers, json=body)
+        elif action == 'getMemberObjects':
+            url = f"{base_url}/servicePrincipals/{service_principal_id}/getMemberObjects"
+            body = {"securityEnabledOnly": False}
+            response = requests.post(url, headers=headers, json=body)
+        elif action == 'ownedObjects':
+            url = f"{base_url}/servicePrincipals/{service_principal_id}/ownedObjects"
+            response = requests.get(url, headers=headers)
         else:
             return jsonify({"error": f"Invalid action: {action}"}), 400
 
-        response.raise_for_status()
-        return jsonify(response.json())
+        if action != 'details':
+            response.raise_for_status()
+            data = response.json()
+            result = data.get('value', data)
+
+        # Combine the service principal details with the action result
+        combined_result = {
+            "servicePrincipalDetails": service_principal_details,
+            "actionResult": result,
+            "isExternalOwnership": is_external
+        }
+
+        return jsonify(combined_result)
 
     except requests.exceptions.RequestException as e:
         app.logger.error(f"Error in get_service_principal_data: {str(e)}")
