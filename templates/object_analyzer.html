@@ -1,49 +1,66 @@
 {% extends "base.html" %}
 {% block title %}Object Analyzer{% endblock %}
 {% block content %}
+
 <div class="container-fluid mt-4">
     <h2>Object Analyzer</h2>
+
     <div class="row mb-4">
         <div class="col-md-6">
             <label for="accessTokenSelect" class="form-label">Select Access Token:</label>
-            <select id="accessTokenSelect" class="form-select mb-3">
+            <select id="accessTokenSelect" class="form-select">
                 <option value="">Choose a token</option>
                 {% for token in access_tokens %}
-                <option value="{{ token.id }}">{{ token.id }} - {{ token.audience }} - {{ token.email }}</option>
+                    <option value="{{ token.id }}">{{ token.id }} - {{ token.audience }} - {{ token.email }}</option>
                 {% endfor %}
             </select>
-            <div class="d-grid gap-2">
-                <button class="btn btn-outline-primary object-type-btn" data-object-type="users">
-                    <i class="bi bi-people-fill me-2"></i>Users
-                </button>
-                <button class="btn btn-outline-primary object-type-btn" data-object-type="groups">
-                    <i class="bi bi-diagram-3-fill me-2"></i>Groups
-                </button>
-                <button class="btn btn-outline-primary object-type-btn" data-object-type="servicePrincipals">
-                    <i class="bi bi-gear-fill me-2"></i>Service Principals
-                </button>
+
+            <div class="d-grid gap-2 mt-3">
+                <div class="row">
+                    <div class="col-6">
+                        <button class="btn btn-primary w-100 object-type-btn" data-object-type="users">Users</button>
+                    </div>
+                    <div class="col-6">
+                        <button class="btn btn-primary w-100 object-type-btn" data-object-type="groups">Groups</button>
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-6">
+                        <button class="btn btn-primary w-100 object-type-btn" data-object-type="servicePrincipals">Service Principals</button>
+                    </div>
+                </div>
             </div>
         </div>
+
         <div class="col-md-6">
             <div id="tokenScp" class="h-100 p-2 border rounded">
-                <h5 class="mb-2">Token SCP:</h5>
+                <h5 id="token-scp" class="mb-2">Token SCP:</h5>
                 <pre id="tokenScpContent" class="mb-0 small" style="max-height: 200px; overflow-y: auto;"></pre>
             </div>
         </div>
     </div>
+
     <div class="row">
         <div class="col-12">
             <div id="objectDropdownContainer" class="mb-3">
-                <select id="objectDropdown" class="form-select" style="width: 100%;">
+                <select id="objectDropdown" class="form-select">
                     <option value="">Select an object</option>
                 </select>
             </div>
+
             <div id="analyzingObjectInfo" class="alert alert-info mb-3" style="display: none;"></div>
-            <div id="actionButtons" class="mb-3"></div>
-            <div id="results" class="mt-4"></div>
+
+            <div id="actionButtons" class="mb-3">
+                <!-- Action buttons will be dynamically added here -->
+            </div>
+
+            <div id="results" class="mt-4">
+                <!-- Results will be dynamically added here -->
+            </div>
         </div>
     </div>
 </div>
+
 {% endblock %}
 
 {% block extra_js %}

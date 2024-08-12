@@ -4,12 +4,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const actionButtons = document.getElementById('actionButtons');
     const results = document.getElementById('results');
     const analyzingObjectInfo = document.getElementById('analyzingObjectInfo');
-    const userDropdown = document.getElementById('userDropdown');
-
+    const objectDropdown = document.getElementById('objectDropdown');
 
     let currentObjectType = null;
-    let currentUserId = null;
-    let currentUserName = null;
+    let currentObjectId = null;
+    let currentObjectName = null;
+    let userResults = {};
 
     function initializeObjectDropdown(objects, objectType) {
         if (!objectDropdown) {
@@ -43,9 +43,6 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error initializing Select2:', error);
         }
     }
-
-
-
 
     const objectTypes = {
         users: {
@@ -91,7 +88,7 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 tokenScpContent.textContent = '';
             }
-            clearResults();
+            clearResults(true);
         });
     }
 
@@ -124,25 +121,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error fetching token SCP:', error);
                 tokenScpContent.textContent = 'Error fetching token permissions';
             });
-    }
-
-    function displayUsers(users, tokenId) {
-        clearResults();
-        const userList = document.createElement('ul');
-        userList.className = 'list-group';
-
-        users.forEach(user => {
-            const li = document.createElement('li');
-            li.className = 'list-group-item d-flex justify-content-between align-items-center';
-            li.innerHTML = `
-                <span>${user.displayName || user.userPrincipalName}</span>
-                <button class="btn btn-primary user-actions-btn">Actions</button>
-            `;
-            li.querySelector('.user-actions-btn').addEventListener('click', () => handleUserSelection(user.id, user.displayName || user.userPrincipalName));
-            userList.appendChild(li);
-        });
-
-        results.appendChild(userList);
     }
 
     function fetchObjects(tokenId, objectType) {
@@ -178,7 +156,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
 
-
     function handleObjectSelection(objectId, objectName, objectType) {
         currentObjectId = objectId;
         currentObjectName = objectName;
@@ -199,13 +176,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         const buttonContainer = document.createElement('div');
-        buttonContainer.className = 'row row-cols-2 row-cols-md-3 g-3';
+        buttonContainer.className = 'row row-cols-2 g-2';
 
         Object.entries(objectTypes[objectType].actions).forEach(([action, title]) => {
             const buttonCol = document.createElement('div');
             buttonCol.className = 'col';
             buttonCol.innerHTML = `
-                <button class="btn btn-warning action-btn" data-action="${action}">
+                <button class="btn btn-warning w-100 action-btn" data-action="${action}">
                     ${title}
                 </button>
             `;
@@ -214,7 +191,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         const executeAllCol = document.createElement('div');
-        executeAllCol.className = 'col';
+        executeAllCol.className = 'col-12 mt-2';
         executeAllCol.innerHTML = `
             <button class="btn btn-success w-100 execute-all-btn">Execute All</button>
         `;
@@ -224,14 +201,12 @@ document.addEventListener('DOMContentLoaded', function() {
         actionButtons.appendChild(buttonContainer);
     }
 
-
-
-    function fetchObjectAction(tokenId, objectType, action, userId) {
+    function fetchObjectAction(tokenId, objectType, action, objectId) {
         showLoading(action);
 
         let url = `/api/${objectType}/${action}?token_id=${tokenId}`;
-        if (userId) {
-            url += `&user_id=${userId}`;
+        if (objectId) {
+            url += `&user_id=${objectId}`;
         }
 
         let method = 'GET';
@@ -260,23 +235,45 @@ document.addEventListener('DOMContentLoaded', function() {
                 return response.json();
             })
             .then(data => {
-                displayActionResults(action, data);
+                if (!userResults[currentObjectId]) {
+                    userResults[currentObjectId] = {};
+                }
+                userResults[currentObjectId][action] = data;
+                displayAllResults();
             })
             .catch(error => {
                 console.error(`Error fetching ${action}:`, error);
-                displayErrorResult(action, error);
+                if (!userResults[currentObjectId]) {
+                    userResults[currentObjectId] = {};
+                }
+                userResults[currentObjectId][action] = { error: error.message };
+                displayAllResults();
             });
     }
 
 
-    function displayActionResults(action, data) {
-        let resultSection = document.getElementById(`result-${action}`);
-        if (!resultSection) {
-            resultSection = document.createElement('div');
-            resultSection.id = `result-${action}`;
-            resultSection.className = 'mb-3';
-            results.appendChild(resultSection);
-        }
+    function displayAllResults() {
+        results.innerHTML = '';
+        Object.entries(userResults).forEach(([userId, userActions]) => {
+            const userResultsDiv = document.createElement('div');
+            userResultsDiv.className = 'user-results mb-4';
+            userResultsDiv.innerHTML = `<h4>Results for User: ${userId}</h4>`;
+
+            Object.entries(userActions).forEach(([action, data]) => {
+                const resultSection = createResultSection(action, data, userId);
+                userResultsDiv.appendChild(resultSection);
+            });
+
+            results.appendChild(userResultsDiv);
+        });
+        sortResults();
+    }
+
+
+    function createResultSection(action, data, userId) {
+        const resultSection = document.createElement('div');
+        resultSection.id = `result-${userId}-${action}`;
+        resultSection.className = 'mb-3';
 
         let icon, statusClass, status;
         if (data.error) {
@@ -295,14 +292,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
         resultSection.innerHTML = `
             <div class="card" data-status="${status}">
-                <div class="card-header" id="heading-${action}">
+                <div class="card-header" id="heading-${userId}-${action}">
                     <h5 class="mb-0">
-                        <button class="btn btn-link collapsed ${statusClass}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${action}">
-                            ${currentUserName} / ${currentUserId} - ${action} <i class="bi ${icon}"></i>
+                        <button class="btn btn-link collapsed ${statusClass}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${userId}-${action}">
+                            ${userId} - ${action} <i class="bi ${icon}"></i>
                         </button>
                     </h5>
                 </div>
-                <div id="collapse-${action}" class="collapse" aria-labelledby="heading-${action}">
+                <div id="collapse-${userId}-${action}" class="collapse" aria-labelledby="heading-${userId}-${action}">
                     <div class="card-body">
                         <pre class="results-container"><code>${JSON.stringify(data, null, 2)}</code></pre>
                         <button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button>
@@ -316,61 +313,37 @@ document.addEventListener('DOMContentLoaded', function() {
             this.querySelector('i').classList.toggle('bi-chevron-down');
             this.querySelector('i').classList.toggle('bi-chevron-up');
         });
+
+        return resultSection;
     }
 
-
-    function displayErrorResult(action, error) {
-        let resultSection = document.getElementById(`result-${action}`);
-        if (!resultSection) {
-            resultSection = document.createElement('div');
-            resultSection.id = `result-${action}`;
-            resultSection.className = 'mb-3';
-            results.appendChild(resultSection);
-        }
-
-        resultSection.innerHTML = `
-            <div class="card" data-status="error">
-                <div class="card-header" id="heading-${action}">
-                    <h5 class="mb-0">
-                        <button class="btn btn-link collapsed text-danger" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${action}">
-                            ${action} <i class="bi bi-x-octagon"></i>
-                        </button>
-                    </h5>
-                </div>
-                <div id="collapse-${action}" class="collapse" aria-labelledby="heading-${action}">
-                    <div class="card-body">
-                        <div class="alert alert-danger">Error: ${error.message}</div>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        sortResults();
-    }
 
     function sortResults() {
         const sortOrder = ['success', 'empty', 'error'];
-        const resultElements = Array.from(results.children);
+        const userResultsDivs = Array.from(results.querySelectorAll('.user-results'));
 
-        if (resultElements.length === 0) return;
+        userResultsDivs.forEach(userResultsDiv => {
+            const resultElements = Array.from(userResultsDiv.querySelectorAll('.mb-3'));
 
-        resultElements.sort((a, b) => {
-            const statusA = a.querySelector('.card')?.dataset.status || '';
-            const statusB = b.querySelector('.card')?.dataset.status || '';
-            return sortOrder.indexOf(statusA) - sortOrder.indexOf(statusB);
+            if (resultElements.length === 0) return;
+
+            resultElements.sort((a, b) => {
+                const statusA = a.querySelector('.card')?.dataset.status || '';
+                const statusB = b.querySelector('.card')?.dataset.status || '';
+                return sortOrder.indexOf(statusA) - sortOrder.indexOf(statusB);
+            });
+
+            resultElements.forEach(element => userResultsDiv.appendChild(element));
         });
-
-        results.innerHTML = '';
-        resultElements.forEach(element => results.appendChild(element));
     }
 
-    function handleUserSelection(userId, userName) {
-        currentUserId = userId;
-        currentUserName = userName;
-        const tokenId = accessTokenSelect.value;
-        displayActionButtons('users', tokenId, userId);
-    }
 
+    function executeAllActions(tokenId, objectType, objectId) {
+        const actions = Object.keys(objectTypes[objectType].actions);
+        actions.forEach(action => {
+            fetchObjectAction(tokenId, objectType, action, objectId);
+        });
+    }
 
     function showLoading(action) {
         let resultSection = document.getElementById(`result-${action}`);
@@ -403,61 +376,6 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => notification.remove(), 5000);
     }
 
-    // Function to go back to user list
-    function backToUserList() {
-        if (currentObjectType === 'users' && accessTokenSelect.value) {
-            fetchUsers(accessTokenSelect.value);
-        }
-    }
-
-    // Add a "Back to User List" button
-    function addBackButton() {
-        const backButton = document.createElement('button');
-        backButton.className = 'btn btn-secondary mb-3';
-        backButton.textContent = 'Back to User List';
-        backButton.addEventListener('click', backToUserList);
-        actionButtons.insertBefore(backButton, actionButtons.firstChild);
-    }
-
-
-    // Modify executeAllActions to not clear the action buttons
-    function executeAllActions(tokenId, objectType, userId) {
-        const actions = Object.keys(objectTypes[objectType].actions);
-        actions.forEach(action => {
-            fetchObjectAction(tokenId, objectType, action, userId);
-        });
-    }
-
-
-    function fetchUsers(tokenId) {
-        showLoading('users');
-
-        fetch(`/api/users?token_id=${tokenId}`)
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(err => {
-                        throw new Error(err.error || `HTTP error! status: ${response.status}`);
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                initializeUserDropdown(data);
-            })
-            .catch(error => {
-                console.error('Error fetching users:', error);
-                showError('users', `Error fetching users: ${error.message}`);
-                userDropdown.innerHTML = '<option value="">Failed to load users</option>';
-                $(userDropdown).select2({
-                    placeholder: 'Failed to load users',
-                    disabled: true
-                });
-            });
-    }
-
-
-
-    // Add this helper function as well
     function showError(action, message) {
         let resultSection = document.getElementById(`result-${action}`);
         if (!resultSection) {
@@ -469,11 +387,10 @@ document.addEventListener('DOMContentLoaded', function() {
         resultSection.innerHTML = `<div class="alert alert-danger">${message}</div>`;
     }
 
-    // Modify clearResults to not clear action buttons
-    function clearResults() {
-        // Only clear the results if there's no current user selected
-        if (!currentUserId) {
+    function clearResults(clearAll = false) {
+        if (clearAll) {
             results.innerHTML = '';
+            userResults = {};
         }
         analyzingObjectInfo.style.display = 'none';
     }
