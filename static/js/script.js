@@ -9,6 +9,7 @@ function initializeApp() {
     setInterval(updateTime, 1000);
     parseIdToken();
     initializeTokenTableEvents();
+    startCountdown();
 }
 
 function initializeEventListeners() {
@@ -49,6 +50,39 @@ function initializeEventListeners() {
         }
     });
 }
+
+function startCountdown() {
+    setInterval(() => {
+        document.querySelectorAll('tr[data-token-id]').forEach(row => {
+            const timeLeftCell = row.querySelector('td:nth-child(7)');
+            const timeLeftSpan = timeLeftCell.querySelector('span');
+            if (timeLeftSpan) {
+                let [hours, minutes, seconds] = timeLeftSpan.textContent.split(':').map(Number);
+                let totalSeconds = hours * 3600 + minutes * 60 + seconds;
+                if (totalSeconds > 0) {
+                    totalSeconds--;
+                    hours = Math.floor(totalSeconds / 3600);
+                    minutes = Math.floor((totalSeconds % 3600) / 60);
+                    seconds = totalSeconds % 60;
+                    timeLeftSpan.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+                    // Update the color based on remaining time
+                    if (totalSeconds > 3600) {
+                        timeLeftSpan.className = 'badge bg-success';
+                    } else if (totalSeconds > 300) {
+                        timeLeftSpan.className = 'badge bg-warning';
+                    } else {
+                        timeLeftSpan.className = 'badge bg-danger';
+                    }
+                } else {
+                    timeLeftSpan.textContent = 'Expired';
+                    timeLeftSpan.className = 'badge bg-secondary';
+                }
+            }
+        });
+    }, 1000);
+}
+
 
 // Simplified updateTime function
 function updateTime() {
@@ -137,19 +171,71 @@ async function handleInsertToken(e) {
     e.preventDefault();
     const token = document.getElementById('token').value;
     try {
-        const data = await fetchPostRequest('/insert_token', { token });
-        if (data.success) {
+        const response = await fetch('/insert_token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ token })
+        });
+        const data = await response.json();
+
+        if (response.ok) {
             showNotification('Token inserted successfully', 'success');
             document.getElementById('token').value = '';
             await refreshTokenTable();
             bootstrap.Modal.getInstance(document.getElementById('insertTokenModal'))?.hide();
+        } else if (data.error === "Token already exists") {
+            showDuplicateTokenNotification(data.tokenDetails);
         } else {
-            throw new Error(data.error);
+            throw new Error(data.error || 'An unknown error occurred');
         }
     } catch (error) {
         showNotification('Failed to insert token: ' + error.message, 'error');
     }
 }
+
+function showDuplicateTokenNotification(tokenDetails) {
+    const modalContent = `
+        <div class="modal fade" id="duplicateTokenModal" tabindex="-1" aria-labelledby="duplicateTokenModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="duplicateTokenModalLabel">Duplicate Token Detected</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>This token already exists in the database.</p>
+                        <p><strong>Token Details:</strong></p>
+                        <ul>
+                            <li>ID: ${tokenDetails.id}</li>
+                            <li>Type: ${tokenDetails.type}</li>
+                            <li>User/App: ${tokenDetails.user || 'N/A'}</li>
+                            <li>Audience: ${tokenDetails.audience || 'N/A'}</li>
+                            <li>Expiration: ${tokenDetails.expiration ? new Date(tokenDetails.expiration * 1000).toLocaleString() : 'N/A'}</li>
+                            <li>Source: ${tokenDetails.source || 'N/A'}</li>
+                        </ul>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remove any existing duplicate token modal
+    const existingModal = document.getElementById('duplicateTokenModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // Add the new modal to the document
+    document.body.insertAdjacentHTML('beforeend', modalContent);
+
+    // Show the modal
+    const duplicateTokenModal = new bootstrap.Modal(document.getElementById('duplicateTokenModal'));
+    duplicateTokenModal.show();
+}
+
 
 
 
