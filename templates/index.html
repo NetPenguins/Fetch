@@ -39,18 +39,19 @@
                         {% endif %}
                     </td>
                     <td>
-                    <button class="btn btn-sm btn-primary copy-token-btn" data-token-id="{{ token.id }}">Copy</button>
-                    <button class="btn btn-sm btn-info show-token-details-btn" data-token-id="{{ token.id }}">Details</button>
+                    <button class="btn btn-sm btn-primary copy-token-btn" data-token-id="{{ token.id }}" title="Copy">📋</button>
+                    <button class="btn btn-sm btn-info show-token-details-btn" data-token-id="{{ token.id }}" title="Details">ℹ️</button>
                     {% if token.token_type == 'refresh_token' %}
-                    <button class="btn btn-sm btn-success generate-access-token-btn" data-token-id="{{ token.id }}">Generate Access Token</button>
+                    <button class="btn btn-sm btn-success generate-access-token-btn" data-token-id="{{ token.id }}" title="Generate Access Token">🔄</button>
                     {% endif %}
-                    <button class="btn btn-sm btn-danger delete-token-btn" data-token-id="{{ token.id }}">Delete</button>
+                    <button class="btn btn-sm btn-danger delete-token-btn" data-token-id="{{ token.id }}" title="Delete">🗑️</button>
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
+<p>Current time: <span id="currentTime">{{ current_time.strftime('%Y-%m-%d %H:%M:%S UTC') }}</span></p>
 </div>
 
 <!-- Token Details Modal -->
@@ -69,7 +70,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" id="copyFullTokenBtn">Copy Full Token</button>
+                <button type="button" class="btn btn-primary" id="copyFullTokenBtn">📋 Copy Full Token</button>
             </div>
         </div>
     </div>
