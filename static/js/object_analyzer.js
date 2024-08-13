@@ -73,12 +73,36 @@ const objectTypes = {
     function handleAccessTokenChange() {
         const tokenId = this.value;
         if (tokenId) {
-            fetchTokenScp(tokenId);
+            checkTokenExpiration(tokenId);
         } else {
             tokenScpContent.textContent = '';
         }
         clearResults(true);
     }
+
+    function checkTokenExpiration(tokenId) {
+        fetch(`/token_details/${tokenId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const expTime = data.highlighted_claims.exp;
+                    const currentTime = Math.floor(Date.now() / 1000);
+                    if (expTime < currentTime) {
+                        showNotification('The selected token has expired. Please choose a valid token.', 'warning');
+                        tokenScpContent.textContent = 'Token expired';
+                    } else {
+                        fetchTokenScp(tokenId);
+                    }
+                } else {
+                    throw new Error(data.error || 'Failed to fetch token details');
+                }
+            })
+            .catch(error => {
+                console.error('Error checking token expiration:', error);
+                showNotification('Error checking token expiration', 'error');
+            });
+    }
+
 
     function handleObjectTypeButtonClick(e) {
         const objectType = e.target.closest('.object-type-btn').dataset.objectType;
@@ -110,6 +134,7 @@ const objectTypes = {
                 tokenScpContent.textContent = 'Error fetching token permissions';
             });
     }
+
 
     function fetchObjects(tokenId, objectType) {
         console.log('Fetching objects for type:', objectType);
@@ -280,50 +305,97 @@ const objectTypes = {
         actionButtons.appendChild(buttonContainer);
     }
 
-    function fetchObjectAction(tokenId, objectType, action, objectId) {
-        showLoading(objectType, action);
+function fetchObjectAction(tokenId, objectType, action, objectId) {
+    showLoading(objectType, action);
 
-        let url = `/api/${objectType}/${action}?token_id=${tokenId}`;
-        if (objectId) {
-            url += `&user_id=${objectId}`;
-        }
+    let url = `/api/${objectType}/${action}?token_id=${tokenId}`;
+    if (objectId) {
+        url += `&user_id=${objectId}`;
+    }
 
-        let method = 'GET';
-        let body = null;
+    let method = 'GET';
+    let body = null;
 
-        if (action === 'getMemberGroups') {
+    // Special handling for specific actions
+    switch (action) {
+        case 'getMemberGroups':
+        case 'getMemberObjects':
             method = 'POST';
             body = JSON.stringify({
                 securityEnabledOnly: false
             });
-        }
-
-        fetch(url, {
-            method: method,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: body
-        })
-        .then(handleResponse)
-        .then(data => {
-            if (!objectResults[objectType][objectId]) {
-                objectResults[objectType][objectId] = {};
-            }
-            objectResults[objectType][objectId][action] = data;
-            displayAllResults();
-            removeLoading(objectType);
-        })
-        .catch(error => {
-            console.error(`Error fetching ${action}:`, error);
-            if (!objectResults[objectType][objectId]) {
-                objectResults[objectType][objectId] = {};
-            }
-            objectResults[objectType][objectId][action] = { error: error.message };
-            displayAllResults();
-            removeLoading(objectType);
-        });
+            break;
+        // Add more cases here for other actions that require special handling
     }
+
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: body
+    })
+    .then(handleResponse)
+    .then(data => {
+        if (!objectResults[objectType][objectId]) {
+            objectResults[objectType][objectId] = {};
+        }
+        // Only store the actionResult for this specific action
+        objectResults[objectType][objectId][action] = {
+            actionResult: data.actionResult,
+            isExternalOwnership: data.isExternalOwnership
+        };
+        displayActionResult(objectType, objectId, action);
+        removeLoading(objectType);
+    })
+    .catch(error => {
+        console.error(`Error fetching ${action}:`, error);
+        if (!objectResults[objectType][objectId]) {
+            objectResults[objectType][objectId] = {};
+        }
+        objectResults[objectType][objectId][action] = { error: error.message };
+        displayActionResult(objectType, objectId, action);
+        removeLoading(objectType);
+    });
+}
+
+
+function displayActionResult(objectType, objectId, action) {
+    const result = objectResults[objectType][objectId][action];
+    const resultSection = createResultSection(action, result, objectId, userNames[objectId] || 'Unknown');
+
+    // Find or create the type results div
+    let typeResultsDiv = document.querySelector(`.type-results[data-object-type="${objectType}"]`);
+    if (!typeResultsDiv) {
+        typeResultsDiv = document.createElement('div');
+        typeResultsDiv.className = 'type-results mb-4';
+        typeResultsDiv.setAttribute('data-object-type', objectType);
+        typeResultsDiv.innerHTML = `<h3>${objectTypes[objectType].title} Results</h3>`;
+        results.appendChild(typeResultsDiv);
+    }
+
+    // Find or create the user results div
+    let userResultsDiv = typeResultsDiv.querySelector(`.user-results[data-object-id="${objectId}"]`);
+    if (!userResultsDiv) {
+        userResultsDiv = document.createElement('div');
+        userResultsDiv.className = 'user-results mb-3';
+        userResultsDiv.setAttribute('data-object-id', objectId);
+        userResultsDiv.innerHTML = `<h4>${userNames[objectId] || 'Unknown'} (${objectId})</h4>`;
+        typeResultsDiv.appendChild(userResultsDiv);
+    }
+
+    // Replace or append the result section
+    const existingResultSection = userResultsDiv.querySelector(`#result-${objectId}-${action}`);
+    if (existingResultSection) {
+        existingResultSection.replaceWith(resultSection);
+    } else {
+        userResultsDiv.appendChild(resultSection);
+    }
+
+    sortResults();
+}
+
+
 
     function displayAllResults() {
         results.innerHTML = '';
@@ -431,6 +503,7 @@ const objectTypes = {
         });
     }
 
+
     function showLoading(objectType, action) {
         console.log('Showing loading for type:', objectType, 'action:', action);
         if (!objectTypes[objectType]) {
@@ -491,6 +564,7 @@ function removeLoading(objectType) {
         document.body.appendChild(notification);
         setTimeout(() => notification.remove(), 5000);
     }
+
 
     function showError(action, message) {
         let resultSection = document.getElementById(`result-${action}`);
