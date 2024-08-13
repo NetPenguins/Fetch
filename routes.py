@@ -1,17 +1,16 @@
-from flask import render_template, request, jsonify, redirect, url_for
+import time
+from datetime import datetime, timedelta, timezone
+
+import jwt
+from flask import render_template
+
 from app import app
-from models import get_db_connection
-from utils import determine_token_type, insert_token, store_graph_results, generate_new_tokens, \
-    request_token_with_secret, request_token_with_password, aware_utcnow, aware_utcfromtimestamp, naive_utcnow, \
-    naive_utcfromtimestamp, get_all_pages
+from config import Config
 from graph_endpoints import GRAPH_ENDPOINTS
 from microsoft_service_principals import microsoft_service_principals
-from config import Config
-import requests
-import json
-import jwt
-from datetime import datetime, timedelta, timezone
-import time
+from models import get_db_connection
+from utils import determine_token_type, insert_token, generate_new_tokens, \
+    aware_utcnow, aware_utcfromtimestamp, get_all_pages
 
 
 @app.route('/')
@@ -94,11 +93,11 @@ def guides():
     return render_template('guides.html', current_time=current_time)
 
 
-
 @app.route('/graph_enumerator')
 def graph_enumerator():
     conn = get_db_connection()
-    access_tokens = conn.execute('SELECT id, oid, audience, email FROM tokens WHERE token_type = "access_token"').fetchall()
+    access_tokens = conn.execute(
+        'SELECT id, oid, audience, email FROM tokens WHERE token_type = "access_token"').fetchall()
     conn.close()
     current_time = aware_utcnow()
     return render_template('graph_enumerator.html',
@@ -113,7 +112,8 @@ def enumerate_graph():
     endpoints = request.form.getlist('endpoints')
 
     conn = get_db_connection()
-    token = conn.execute('SELECT token FROM tokens WHERE id = ? AND token_type = "access_token"', (token_id,)).fetchone()
+    token = conn.execute('SELECT token FROM tokens WHERE id = ? AND token_type = "access_token"',
+                         (token_id,)).fetchone()
     conn.close()
 
     if not token:
@@ -221,7 +221,6 @@ def request_token_secret():
         return jsonify({"success": False, "error": str(e)}), 400
 
 
-
 @app.route('/refresh_token', methods=['POST'])
 def refresh_token():
     client_id = request.form.get('client_id')
@@ -286,7 +285,6 @@ def delete_token(token_id):
         return jsonify({"success": False, "error": "Token not found"}), 404
 
 
-
 @app.route('/get_refresh_tokens')
 def get_refresh_tokens():
     try:
@@ -342,7 +340,8 @@ def token_details(token_id):
 @app.route('/get_access_token/<int:token_id>', methods=['GET'])
 def get_access_token(token_id):
     conn = get_db_connection()
-    token = conn.execute('SELECT token FROM tokens WHERE id = ? AND token_type = "access_token"', (token_id,)).fetchone()
+    token = conn.execute('SELECT token FROM tokens WHERE id = ? AND token_type = "access_token"',
+                         (token_id,)).fetchone()
     conn.close()
     if token:
         return jsonify({"success": True, "access_token": token['token']})
@@ -353,7 +352,8 @@ def get_access_token(token_id):
 @app.route('/get_token_permissions/<int:token_id>')
 def get_token_permissions(token_id):
     conn = get_db_connection()
-    token = conn.execute('SELECT token FROM tokens WHERE id = ? AND token_type = "access_token"', (token_id,)).fetchone()
+    token = conn.execute('SELECT token FROM tokens WHERE id = ? AND token_type = "access_token"',
+                         (token_id,)).fetchone()
     conn.close()
 
     if token:
@@ -369,12 +369,11 @@ def get_token_permissions(token_id):
         return jsonify({"success": False, "error": "Token not found"}), 404
 
 
-
-
 @app.route('/db_analyzer')
 def db_analyzer():
     conn = get_db_connection()
-    access_tokens = conn.execute('SELECT id, oid, audience, email FROM tokens WHERE token_type = "access_token"').fetchall()
+    access_tokens = conn.execute(
+        'SELECT id, oid, audience, email FROM tokens WHERE token_type = "access_token"').fetchall()
     conn.close()
     current_time = aware_utcnow()
     return render_template('db_analyzer.html',
@@ -382,12 +381,11 @@ def db_analyzer():
                            current_time=current_time)
 
 
-
-
 @app.route('/graph_action/<action>/<int:token_id>')
 def graph_action(action, token_id):
     conn = get_db_connection()
-    token = conn.execute('SELECT token FROM tokens WHERE id = ? AND token_type = "access_token"', (token_id,)).fetchone()
+    token = conn.execute('SELECT token FROM tokens WHERE id = ? AND token_type = "access_token"',
+                         (token_id,)).fetchone()
     conn.close()
 
     if not token:
@@ -708,12 +706,14 @@ def get_tokens_table():
                            current_time=datetime.utcnow(),
                            timedelta=timedelta)
 
+
 @app.route('/generate_from_refresh', methods=['POST'])
 def generate_from_refresh():
     refresh_token_id = request.form['refresh_token_id']
     client_id = request.form['client_id']  # Add this line
     conn = get_db_connection()
-    refresh_token = conn.execute('SELECT token, tenant_id FROM tokens WHERE id = ? AND token_type = "refresh_token"', (refresh_token_id,)).fetchone()
+    refresh_token = conn.execute('SELECT token, tenant_id FROM tokens WHERE id = ? AND token_type = "refresh_token"',
+                                 (refresh_token_id,)).fetchone()
     conn.close()
 
     if not refresh_token:
@@ -721,6 +721,7 @@ def generate_from_refresh():
 
     result = generate_new_tokens(client_id, refresh_token['token'], refresh_token['tenant_id'])
     return jsonify(result)
+
 
 @app.route('/poll_for_token', methods=['POST'])
 def poll_for_token():
@@ -747,7 +748,6 @@ def poll_for_token():
         return jsonify({"status": "pending"})
     else:
         return jsonify({"status": "error", "error": f"Error: {response.status_code} - {response.text}"}), 400
-
 
 
 @app.route('/current_time')
@@ -922,6 +922,7 @@ def get_user_data(action):
             return jsonify(data)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 # Add a similar route for service principals
 @app.route('/api/servicePrincipals/<action>', methods=['GET', 'POST'])
