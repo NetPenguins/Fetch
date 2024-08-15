@@ -8,6 +8,16 @@ document.addEventListener('DOMContentLoaded', function() {
         objectDropdown: document.getElementById('objectDropdown')
     };
 
+    // Check for missing elements and log warnings
+    Object.entries(elements).forEach(([key, value]) => {
+        if (!value) {
+            console.warn(`Element with ID "${key}" not found in the DOM`);
+        }
+    });
+
+
+
+
     let currentState = {
         objectType: null,
         objectId: null,
@@ -24,68 +34,53 @@ document.addEventListener('DOMContentLoaded', function() {
     const objectResults = {
         users: {},
         groups: {},
-        servicePrincipals: {}
+        servicePrincipals: {},
+        applications: {}
     };
 
-    const objectTypes = {
-        users: {
-            title: 'Users',
-            icon: 'bi-people-fill',
-            actions: {
-                appRoleAssignments: 'App Role Assignments',
-                calendars: 'Calendars',
-                oauth2PermissionGrants: 'OAuth2 Permission Grants',
-                ownedDevices: 'Owned Devices',
-                ownedObjects: 'Owned Objects',
-                registeredDevices: 'Registered Devices',
-                notebooks: 'OneNote Notebooks',
-                directReports: 'Direct Reports',
-                people: 'People',
-                contacts: 'Contacts',
-                plannerTasks: 'Planner Tasks',
-                sponsors: 'Sponsors',
-                memberOf: 'Member Of',
-                getMemberGroups: 'Get Member Groups'
+    // Load OBJECT_ENDPOINTS from the server
+    let OBJECT_ENDPOINTS;
+    fetch('/get_object_endpoints')
+        .then(response => response.json())
+        .then(data => {
+            OBJECT_ENDPOINTS = data;
+            initializeObjectTypeButtons();
+        })
+        .catch(error => console.error('Error loading OBJECT_ENDPOINTS:', error));
+
+        function initializeObjectTypeButtons() {
+            console.log('Initializing object type buttons');
+            const objectTypeButtons = document.querySelectorAll('.object-type-btn');
+
+            if (objectTypeButtons.length === 0) {
+                console.warn('No object type buttons found in the DOM');
+                return;
             }
-        },
-        groups: {
-            title: 'Groups',
-            icon: 'bi-diagram-3-fill',
-            actions: {}
-        },
-        servicePrincipals: {
-            title: 'Service Principals',
-            icon: 'bi-gear-fill',
-            actions: {
-                details: 'Details',
-                appRoleAssignments: 'App Role Assignments',
-                appRoleAssignedTo: 'App Role Assigned To',
-                oauth2PermissionGrants: 'OAuth2 Permission Grants',
-                delegatedPermissionClassifications: 'Delegated Permission Classifications',
-                owners: 'Owners',
-                claimsMappingPolicies: 'Claims Mapping Policies',
-                homeRealmDiscoveryPolicies: 'Home Realm Discovery Policies',
-                tokenIssuancePolicies: 'Token Issuance Policies',
-                tokenLifetimePolicies: 'Token Lifetime Policies',
-                memberOf: 'Member Of',
-                getMemberGroups: 'Get Member Groups',
-                getMemberObjects: 'Get Member Objects',
-                ownedObjects: 'Owned Objects'
-            }
+
+            objectTypeButtons.forEach(button => {
+                const objectType = button.dataset.objectType;
+                if (OBJECT_ENDPOINTS[objectType.charAt(0).toUpperCase() + objectType.slice(1)]) {
+                    button.addEventListener('click', handleObjectTypeButtonClick);
+                } else {
+                    console.warn(`No endpoint configuration found for object type: ${objectType}`);
+                    button.disabled = true;
+                }
+            });
+
+            console.log('Object type buttons initialized');
         }
-    };
 
-    const INTERNAL_ORG_IDS = [
-        "f8cdef31-a31e-4b4a-93e4-5f571e91255a",
-        "cdc5aeea-15c5-4db6-b079-fcadd2505dc2"
-    ];
+
+
 
     function handleAccessTokenChange() {
         const tokenId = this.value;
         if (tokenId) {
             checkTokenExpiration(tokenId);
         } else {
-            elements.tokenScpContent.textContent = '';
+            if (elements.tokenScpContent) {
+                elements.tokenScpContent.textContent = '';
+            }
         }
         clearResults(true);
     }
@@ -93,11 +88,13 @@ document.addEventListener('DOMContentLoaded', function() {
     function checkTokenExpiration(tokenId) {
         fetchJson(`/token_details/${tokenId}`)
             .then(data => {
-                const expTime = data.highlighted_claims.exp;
+                const expTime = data.highlighted_claims && data.highlighted_claims.exp;
                 const currentTime = Math.floor(Date.now() / 1000);
-                if (expTime < currentTime) {
+                if (expTime && expTime < currentTime) {
                     showNotification('The selected token has expired. Please choose a valid token.', 'warning');
-                    elements.tokenScpContent.textContent = 'Token expired';
+                    if (elements.tokenScpContent) {
+                        elements.tokenScpContent.textContent = 'Token expired';
+                    }
                 } else {
                     fetchTokenScp(tokenId);
                 }
@@ -105,242 +102,279 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(error => handleError('Error checking token expiration', error));
     }
 
-    function handleObjectTypeButtonClick(e) {
-        const objectType = e.target.closest('.object-type-btn').dataset.objectType;
-        console.log('Object type clicked:', objectType);
-        const tokenId = elements.accessTokenSelect.value;
-        if (tokenId) {
-            currentState.objectType = objectType;
-            fetchObjects(tokenId, objectType);
-        } else {
-            alert('Please select an access token first.');
-        }
-    }
-
     function fetchTokenScp(tokenId) {
-        fetchJson(`/get_token_permissions/${tokenId}`)
-            .then(data => {
-                elements.tokenScpContent.textContent = data.permissions.join('\n');
-            })
-            .catch(error => handleError('Error fetching token SCP', error));
-    }
+    fetchJson(`/get_token_permissions/${tokenId}`)
+        .then(data => {
+            if (elements.tokenScpContent && data.permissions) {
+                displayTokenPermissions(data.permissions);
+            }
+        })
+        .catch(error => handleError('Error fetching token SCP', error));
+}
 
-    function fetchObjects(tokenId, objectType) {
-        console.log('Fetching objects for type:', objectType);
-        showLoading(objectType);
-        let url = `/api/${objectType}?token_id=${tokenId}`;
-        if (objectType === 'servicePrincipals') {
-            url += '&$select=id,displayName,appId,appOwnerOrganizationId';
-        }
-        fetchJson(url)
-            .then(data => {
-                cache.objects = data.reduce((acc, obj) => {
+
+function displayTokenPermissions(permissions) {
+    if (elements.tokenScpContent) {
+        elements.tokenScpContent.innerHTML = permissions.map(perm =>
+            `<a href="https://graphpermissions.merill.net/permission/${encodeURIComponent(perm)}" target="_blank">${perm}</a>`
+        ).join(' ');
+    }
+}
+
+
+function handleObjectTypeButtonClick(e) {
+    e.target.classList.toggle('active');
+
+    const objectType = e.target.dataset.objectType;
+    console.log('Object type clicked:', objectType);
+    const tokenId = elements.accessTokenSelect ? elements.accessTokenSelect.value : null;
+    if (tokenId) {
+        currentState.objectType = objectType;
+        fetchObjects(tokenId, objectType);
+    } else {
+        alert('Please select an access token first.');
+    }
+}
+
+
+
+
+function fetchObjects(tokenId, objectType) {
+    console.log('Fetching objects for type:', objectType);
+    showLoading(objectType);
+    let url = `/api/${objectType}?token_id=${tokenId}`;
+
+    fetchJson(url)
+        .then(data => {
+            let objects = data.objects || [];
+            let permissions = data.permissions || [];
+            let isAppToken = data.is_app_token;
+
+            if (objects.length > 0) {
+                cache.objects = objects.reduce((acc, obj) => {
                     acc[obj.id] = obj;
                     cache.userNames[obj.id] = obj.displayName || obj.userPrincipalName || obj.appId || 'Unknown';
                     return acc;
                 }, {});
-                initializeObjectDropdown(data, objectType);
-                removeLoading(objectType);
+                initializeObjectDropdown(objects, objectType);
+                displayActionButtons(objectType, tokenId);
+                highlightAccessiblePaths(objectType, permissions, isAppToken);
                 if (elements.objectDropdown) elements.objectDropdown.style.display = 'block';
-            })
-            .catch(error => handleFetchError(error, objectType));
-    }
-
-    function fetchJson(url, options = {}) {
-        return fetch(url, options).then(handleResponse);
-    }
-
-    function handleResponse(response) {
-        if (!response.ok) {
-            return response.text().then(text => {
-                try {
-                    const json = JSON.parse(text);
-                    throw new Error(json.error || `HTTP error! status: ${response.status}`);
-                } catch (e) {
-                    throw new Error(`HTTP error! status: ${response.status}, message: ${text}`);
-                }
-            });
-        }
-        return response.json();
-    }
-
-    function handleFetchError(error, objectType) {
-        console.error(`Error fetching ${objectType}:`, error);
-        showError(objectType, `Error fetching ${objectType}: ${error.message}`);
-        if (elements.objectDropdown) {
-            elements.objectDropdown.innerHTML = `<option value="">Failed to load ${objectType}</option>`;
-            try {
-                $(elements.objectDropdown).select2({
-                    placeholder: `Failed to load ${objectType}`,
-                    disabled: true
-                });
-            } catch (error) {
-                console.error('Error reinitializing Select2:', error);
+            } else {
+                console.warn('No objects returned for type:', objectType);
+                showNotification(`No ${objectType} found`, 'warning');
             }
-        }
-        removeLoading(objectType);
-    }
+        })
+        .catch(error => handleFetchError(error, objectType))
+        .finally(() => removeLoading(objectType));
+}
 
-function initializeObjectDropdown(objects, objectType) {
-    if (!elements.objectDropdown) {
-        console.error('Object dropdown element not found');
+
+
+
+
+
+function highlightAccessiblePaths(objectType, permissions, isAppToken) {
+    console.log('Highlighting paths for:', objectType, 'Permissions:', permissions, 'Is App Token:', isAppToken);
+
+    const normalizedObjectType = objectType.charAt(0).toUpperCase() + objectType.slice(1);
+    const endpointConfig = OBJECT_ENDPOINTS[normalizedObjectType] && OBJECT_ENDPOINTS[normalizedObjectType][objectType.toLowerCase()];
+
+    if (!endpointConfig || !endpointConfig.actions) {
+        console.error(`No endpoint configuration found for ${objectType}`);
         return;
     }
 
-    elements.objectDropdown.innerHTML = `<option value="">Select a ${objectType}</option>`;
+    const actionButtons = document.querySelectorAll(`.action-btn[data-object-type="${objectType}"]`);
 
-    if (objectType === 'servicePrincipals') {
-        objects.sort((a, b) => {
-            const aIsExternal = !INTERNAL_ORG_IDS.includes(a.appOwnerOrganizationId);
-            const bIsExternal = !INTERNAL_ORG_IDS.includes(b.appOwnerOrganizationId);
-            if (aIsExternal !== bIsExternal) return aIsExternal ? -1 : 1;
-            return 0;
-        });
+    actionButtons.forEach(button => {
+        const action = button.dataset.action;
+        const actionConfig = endpointConfig.actions[action];
+
+        if (!actionConfig) {
+            console.error(`No configuration found for action: ${action}`);
+            return;
+        }
+
+        const requiredPermission = isAppToken ? actionConfig.applicationPermission : actionConfig.delegatedPermission;
+
+        console.log('Action:', action, 'Required Permission:', requiredPermission);
+
+        if (requiredPermission) {
+            const status = getPermissionStatus(requiredPermission, permissions);
+            updateButtonStatus(button, status);
+        }
+    });
+}
+
+function getPermissionStatus(requiredPermission, permissions) {
+    const permSet = new Set(permissions.map(p => p.toLowerCase()));
+    const permissionParts = requiredPermission.toLowerCase().split('.');
+
+    if (permSet.has(requiredPermission.toLowerCase())) {
+        return 'allowed';
     }
 
-    objects.forEach(obj => {
-        const option = document.createElement('option');
-        option.value = obj.id;
-        option.textContent = `${obj.displayName || obj.userPrincipalName || obj.appId} / ${obj.id}`;
-        if (objectType === 'servicePrincipals' && !INTERNAL_ORG_IDS.includes(obj.appOwnerOrganizationId)) {
-            option.classList.add('external-ownership');
-            option.textContent += ' (Non-Microsoft)';
+    for (let i = 1; i < permissionParts.length; i++) {
+        const partialPerm = permissionParts.slice(0, i).join('.');
+        if (permSet.has(partialPerm)) {
+            return 'potentially-allowed';
         }
-        elements.objectDropdown.appendChild(option);
-    });
+    }
 
-    try {
-        $(elements.objectDropdown).select2({
-            placeholder: `Select a ${objectType}`,
-            allowClear: true,
-            width: '100%',
-            templateResult: formatObjectOption
-        });
+    return 'not-allowed';
+}
 
-        $(elements.objectDropdown).on('change', function() {
-            const selectedObjectId = this.value;
-            const selectedObject = objects.find(obj => obj.id === selectedObjectId);
-            if (selectedObject) {
-                handleObjectSelection(selectedObject.id, selectedObject.displayName || selectedObject.userPrincipalName || selectedObject.appId, objectType);
-            }
-        });
-    } catch (error) {
-        console.error('Error initializing Select2:', error);
+function updateButtonStatus(button, status) {
+    button.classList.remove('accessible', 'potentially-allowed', 'inaccessible');
+    if (status === 'allowed') {
+        button.classList.add('accessible');
+    } else if (status === 'potentially-allowed') {
+        button.classList.add('potentially-allowed');
+    } else {
+        button.classList.add('inaccessible');
     }
 }
 
-    function formatObjectOption(object) {
-        if (!object.id) {
-            return object.text;
-        }
-        const isExternal = $(object.element).hasClass('external-ownership');
-        const $object = $(
-            `<span>${object.text}</span>`
-        );
-        if (isExternal) {
-            $object.append('<span class="external-ownership-note"> (Not Microsoft)</span>');
-        }
-        return $object;
-    }
 
+
+
+
+
+    function initializeObjectDropdown(objects, objectType) {
+        if (!elements.objectDropdown) {
+            console.error('Object dropdown element not found');
+            return;
+        }
+
+        elements.objectDropdown.innerHTML = `<option value="">Select a ${objectType}</option>`;
+
+        objects.forEach(obj => {
+            const option = document.createElement('option');
+            option.value = obj.id;
+            option.textContent = `${obj.displayName || obj.userPrincipalName || obj.appId} / ${obj.id}`;
+            elements.objectDropdown.appendChild(option);
+        });
+
+        try {
+            $(elements.objectDropdown).select2({
+                placeholder: `Select a ${objectType}`,
+                allowClear: true,
+                width: '100%'
+            });
+
+            $(elements.objectDropdown).on('change', function() {
+                const selectedObjectId = this.value;
+                const selectedObject = objects.find(obj => obj.id === selectedObjectId);
+                if (selectedObject) {
+                    handleObjectSelection(selectedObject.id, selectedObject.displayName || selectedObject.userPrincipalName || selectedObject.appId, objectType);
+                }
+            });
+        } catch (error) {
+            console.error('Error initializing Select2:', error);
+        }
+    }
 
     function handleObjectSelection(objectId, objectName, objectType) {
         currentState.objectId = objectId;
         currentState.objectName = objectName;
         currentState.objectType = objectType;
-        const tokenId = elements.accessTokenSelect.value;
-        displayActionButtons(objectType, tokenId, objectId);
+        if (elements.analyzingObjectInfo) {
+            elements.analyzingObjectInfo.textContent = `Analyzing: ${objectType} | ID: ${objectId} | Name: ${objectName}`;
+            elements.analyzingObjectInfo.style.display = 'block';
+        }
     }
 
-    function displayActionButtons(objectType, tokenId, objectId = null) {
-        elements.actionButtons.innerHTML = '';
+function displayActionButtons(objectType, tokenId) {
+    if (!elements.actionButtons) {
+        console.error('Action buttons container not found');
+        return;
+    }
+    elements.actionButtons.innerHTML = '';
 
-        if (objectId) {
-            elements.analyzingObjectInfo.textContent = `Analyzing: ${objectTypes[objectType].title} | ID: ${objectId} | Name: ${currentState.objectName}`;
-            elements.analyzingObjectInfo.style.display = 'block';
-        } else {
-            elements.analyzingObjectInfo.style.display = 'none';
-        }
+    const buttonContainer = document.createElement('div');
+    buttonContainer.className = 'row row-cols-2 g-2';
 
-        const buttonContainer = document.createElement('div');
-        buttonContainer.className = 'row row-cols-2 g-2';
-
-        Object.entries(objectTypes[objectType].actions).forEach(([action, title]) => {
+    const endpointConfig = OBJECT_ENDPOINTS[objectType.charAt(0).toUpperCase() + objectType.slice(1)][objectType.toLowerCase()];
+    if (endpointConfig && endpointConfig.actions) {
+        Object.entries(endpointConfig.actions).forEach(([action, actionConfig]) => {
             const buttonCol = document.createElement('div');
             buttonCol.className = 'col';
             buttonCol.innerHTML = `
-                <button class="btn btn-warning w-100 action-btn" data-action="${action}">
-                    ${title}
+                <button class="btn btn-secondary w-100 action-btn" data-action="${action}" data-object-type="${objectType}">
+                    ${action}
                 </button>
             `;
-            buttonCol.querySelector('.action-btn').addEventListener('click', () => fetchObjectAction(tokenId, objectType, action, objectId));
+            buttonCol.querySelector('.action-btn').addEventListener('click', () => {
+                const selectedObjectId = elements.objectDropdown.value;
+                if (selectedObjectId) {
+                    fetchObjectAction(tokenId, objectType, action, selectedObjectId);
+                } else {
+                    alert('Please select an object first.');
+                }
+            });
             buttonContainer.appendChild(buttonCol);
         });
-
-        const executeAllCol = document.createElement('div');
-        executeAllCol.className = 'col-12 mt-2';
-        executeAllCol.innerHTML = `
-            <button class="btn btn-success w-100 execute-all-btn">Execute All</button>
-        `;
-        executeAllCol.querySelector('.execute-all-btn').addEventListener('click', () => executeAllActions(tokenId, objectType, objectId));
-        buttonContainer.appendChild(executeAllCol);
-
-        elements.actionButtons.appendChild(buttonContainer);
     }
 
-    function fetchObjectAction(tokenId, objectType, action, objectId) {
-        showLoading(objectType, action);
-
-        let url = `/api/${objectType}/${action}?token_id=${tokenId}`;
-        if (objectId) {
-            url += `&user_id=${objectId}`;
+    const executeAllCol = document.createElement('div');
+    executeAllCol.className = 'col-12 mt-2';
+    executeAllCol.innerHTML = `
+        <button class="btn btn-success w-100 execute-all-btn">Execute All</button>
+    `;
+    executeAllCol.querySelector('.execute-all-btn').addEventListener('click', () => {
+        const selectedObjectId = elements.objectDropdown.value;
+        if (selectedObjectId) {
+            executeAllActions(tokenId, objectType, selectedObjectId);
+        } else {
+            alert('Please select an object first.');
         }
+    });
+    buttonContainer.appendChild(executeAllCol);
 
-        let method = 'GET';
-        let body = null;
+    elements.actionButtons.appendChild(buttonContainer);
+}
 
-        switch (action) {
-            case 'getMemberGroups':
-            case 'getMemberObjects':
-                method = 'POST';
-                body = JSON.stringify({
-                    securityEnabledOnly: false
-                });
-                break;
-        }
 
-        fetchJson(url, {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: body
-            })
-            .then(data => {
-                if (!objectResults[objectType][objectId]) {
-                    objectResults[objectType][objectId] = {};
-                }
-                objectResults[objectType][objectId][action] = {
-                    actionResult: data.actionResult || data,
-                    isExternalOwnership: data.isExternalOwnership
-                };
-                displayActionResult(objectType, objectId, action);
-            })
-            .catch(error => {
-                console.error(`Error fetching ${action}:`, error);
-                if (!objectResults[objectType][objectId]) {
-                    objectResults[objectType][objectId] = {};
-                }
-                objectResults[objectType][objectId][action] = {
-                    error: error.message,
-                    status: error.status || 'Unknown'
-                };
-                displayActionResult(objectType, objectId, action);
-            })
-            .finally(() => {
-                removeLoading(objectType);
-            });
-    }
+
+
+
+
+function fetchObjectAction(tokenId, objectType, action, objectId) {
+    showLoading(objectType, action);
+
+    let url = `/api/${objectType}/${action}?token_id=${tokenId}&user_id=${objectId}`;
+
+    console.log(`Requesting URL: ${url}`);  // Keep this for debugging
+
+    fetchJson(url)
+        .then(data => {
+            if (!objectResults[objectType][objectId]) {
+                objectResults[objectType][objectId] = {};
+            }
+            objectResults[objectType][objectId][action] = {
+                actionResult: data,
+                isExternalOwnership: data.isExternalOwnership
+            };
+            displayActionResult(objectType, objectId, action);
+        })
+        .catch(error => {
+            console.error(`Error fetching ${action} for ${objectType}:`, error);
+            if (!objectResults[objectType][objectId]) {
+                objectResults[objectType][objectId] = {};
+            }
+            objectResults[objectType][objectId][action] = {
+                error: error.message,
+                status: error.status || 'Unknown'
+            };
+            displayActionResult(objectType, objectId, action);
+            showNotification(`Failed to fetch ${action} for ${objectType}`, 'error');
+        })
+        .finally(() => {
+            removeLoading(objectType);
+        });
+}
+
 
     function displayActionResult(objectType, objectId, action) {
         const result = objectResults[objectType][objectId][action];
@@ -351,8 +385,8 @@ function initializeObjectDropdown(objects, objectType) {
             typeResultsDiv = document.createElement('div');
             typeResultsDiv.className = 'type-results mb-4';
             typeResultsDiv.setAttribute('data-object-type', objectType);
-            typeResultsDiv.innerHTML = `<h3>${objectTypes[objectType].title} Results</h3>`;
-            elements.results.appendChild(typeResultsDiv);
+            typeResultsDiv.innerHTML = `<h3>${objectType} Results</h3>`;
+            if (elements.results) elements.results.appendChild(typeResultsDiv);
         }
 
         let userResultsDiv = typeResultsDiv.querySelector(`.user-results[data-object-id="${objectId}"]`);
@@ -374,36 +408,7 @@ function initializeObjectDropdown(objects, objectType) {
         sortResults();
     }
 
-    function displayAllResults() {
-        elements.results.innerHTML = '';
 
-        Object.entries(objectResults).forEach(([type, typeResults]) => {
-            if (Object.keys(typeResults).length > 0) {
-                const typeResultsDiv = document.createElement('div');
-                typeResultsDiv.className = 'type-results mb-4';
-                typeResultsDiv.innerHTML = `<h3>${objectTypes[type].title} Results</h3>`;
-
-                Object.entries(typeResults).forEach(([objectId, objectActions]) => {
-                    const userResultsDiv = document.createElement('div');
-                    userResultsDiv.className = 'user-results mb-3';
-
-                    const displayName = cache.userNames[objectId] || 'Unknown';
-
-                    userResultsDiv.innerHTML = `<h4>${displayName} (${objectId})</h4>`;
-
-                    Object.entries(objectActions).forEach(([action, data]) => {
-                        const resultSection = createResultSection(action, data, objectId, displayName);
-                        userResultsDiv.appendChild(resultSection);
-                    });
-
-                    typeResultsDiv.appendChild(userResultsDiv);
-                });
-
-                elements.results.appendChild(typeResultsDiv);
-            }
-        });
-        sortResults();
-    }
 
     function createResultSection(action, data, objectId, displayName) {
         const resultSection = document.createElement('div');
@@ -472,33 +477,46 @@ function initializeObjectDropdown(objects, objectType) {
                     return sortOrder.indexOf(statusA) - sortOrder.indexOf(statusB);
                 });
 
-                resultElements.forEach(element => userResultsDiv.appendChild(element));
+            resultElements.forEach(element => userResultsDiv.appendChild(element));
             });
         });
     }
 
     function executeAllActions(tokenId, objectType, objectId) {
-        const actions = Object.keys(objectTypes[objectType].actions);
-        actions.forEach(action => {
-            fetchObjectAction(tokenId, objectType, action, objectId);
-        });
+        let normalizedObjectType = objectType.charAt(0).toUpperCase() + objectType.slice(1);
+        if (normalizedObjectType === 'Serviceprincipals') {
+            normalizedObjectType = 'ServicePrincipals';
+        }
+        const endpointConfig = OBJECT_ENDPOINTS[normalizedObjectType][objectType.toLowerCase()];
+        if (endpointConfig && endpointConfig.actions) {
+            Object.keys(endpointConfig.actions).forEach(action => {
+                fetchObjectAction(tokenId, objectType, action, objectId);
+            });
+        } else {
+            console.error(`No actions found for object type: ${objectType}`);
+            showNotification(`No actions available for ${objectType}`, 'error');
+        }
     }
+
+
+
+
 
     function showLoading(objectType, action) {
         console.log('Showing loading for type:', objectType, 'action:', action);
-        if (!objectTypes[objectType]) {
+        if (!OBJECT_ENDPOINTS[objectType.charAt(0).toUpperCase() + objectType.slice(1)]) {
             console.error(`Invalid object type: ${objectType}`);
             return;
         }
 
         let typeResultsDiv = Array.from(elements.results.querySelectorAll('.type-results')).find(div =>
-            div.querySelector('h3').textContent === `${objectTypes[objectType].title} Results`
+            div.querySelector('h3').textContent === `${objectType} Results`
         );
 
         if (!typeResultsDiv) {
             typeResultsDiv = document.createElement('div');
             typeResultsDiv.className = 'type-results mb-4';
-            typeResultsDiv.innerHTML = `<h3>${objectTypes[objectType].title} Results</h3>`;
+            typeResultsDiv.innerHTML = `<h3>${objectType} Results</h3>`;
             elements.results.appendChild(typeResultsDiv);
         }
 
@@ -514,7 +532,7 @@ function initializeObjectDropdown(objects, objectType) {
 
     function removeLoading(objectType) {
         const typeResultsDiv = Array.from(elements.results.querySelectorAll('.type-results')).find(div =>
-            div.querySelector('h3').textContent === `${objectTypes[objectType].title} Results`
+            div.querySelector('h3').textContent === `${objectType} Results`
         );
         if (typeResultsDiv) {
             const loadingIndicator = typeResultsDiv.querySelector('.loading-indicator');
@@ -545,6 +563,29 @@ function initializeObjectDropdown(objects, objectType) {
         setTimeout(() => notification.remove(), 5000);
     }
 
+    function handleFetchError(error, objectType) {
+        console.error(`Error fetching ${objectType}:`, error);
+        let errorMessage = `Error fetching ${objectType}: ${error.message}`;
+        if (error.response) {
+            errorMessage += ` (Status: ${error.response.status})`;
+        }
+        showError(objectType, errorMessage);
+        if (elements.objectDropdown) {
+            elements.objectDropdown.innerHTML = `<option value="">Failed to load ${objectType}</option>`;
+            try {
+                $(elements.objectDropdown).select2({
+                    placeholder: `Failed to load ${objectType}`,
+                    disabled: true
+                });
+            } catch (error) {
+                console.error('Error reinitializing Select2:', error);
+            }
+        }
+        removeLoading(objectType);
+        showNotification(errorMessage, 'error');
+    }
+
+
     function showError(action, message) {
         let resultSection = document.getElementById(`result-${action}`);
         if (!resultSection) {
@@ -558,12 +599,12 @@ function initializeObjectDropdown(objects, objectType) {
 
     function clearResults(clearAll = false) {
         if (clearAll) {
-            elements.results.innerHTML = '';
+            if (elements.results) elements.results.innerHTML = '';
             Object.keys(objectResults).forEach(key => objectResults[key] = {});
             cache.userNames = {};
             if (elements.objectDropdown) elements.objectDropdown.style.display = 'none';
         }
-        elements.analyzingObjectInfo.style.display = 'none';
+        if (elements.analyzingObjectInfo) elements.analyzingObjectInfo.style.display = 'none';
     }
 
     function handleError(message, error) {
@@ -574,11 +615,27 @@ function initializeObjectDropdown(objects, objectType) {
     function initializeEventListeners() {
         if (elements.accessTokenSelect) {
             elements.accessTokenSelect.addEventListener('change', handleAccessTokenChange);
+        } else {
+            console.warn('Access token select element not found');
         }
+    }
 
-        document.querySelectorAll('.object-type-btn').forEach(btn => {
-            btn.addEventListener('click', handleObjectTypeButtonClick);
-        });
+    function fetchJson(url, options = {}) {
+        return fetch(url, options).then(handleResponse);
+    }
+
+    function handleResponse(response) {
+        if (!response.ok) {
+            return response.text().then(text => {
+                try {
+                    const json = JSON.parse(text);
+                    throw new Error(json.error || `HTTP error! status: ${response.status}`);
+                } catch (e) {
+                    throw new Error(`HTTP error! status: ${response.status}, message: ${text}`);
+                }
+            });
+        }
+        return response.json();
     }
 
     initializeEventListeners();

@@ -3,10 +3,13 @@ from datetime import datetime, timedelta, timezone
 
 import jwt
 from flask import render_template
+import json
+
 
 from app import app
 from config import Config
 from graph_endpoints import GRAPH_ENDPOINTS
+from object_endpoints import OBJECT_ENDPOINTS
 from microsoft_service_principals import microsoft_service_principals
 from models import get_db_connection
 from utils import determine_token_type, insert_token, generate_new_tokens, \
@@ -312,22 +315,34 @@ def token_details(token_id):
 
         decoded_token = jwt.decode(token['token'], options={"verify_signature": False})
 
+        permissions = decoded_token.get('scp', '').split() + decoded_token.get('roles', [])
+
         highlighted_claims = {
-            'exp': decoded_token.get('exp'),
-            'iat': decoded_token.get('iat'),
-            'aud': decoded_token.get('aud'),
-            'iss': decoded_token.get('iss'),
-            'sub': decoded_token.get('sub'),
-            'idtyp': decoded_token.get('idtyp', 'Not specified'),
-            'identifier': token['email'] or token['user']
+            "aud": decoded_token.get('aud'),
+            "iss": decoded_token.get('iss'),
+            "iat": decoded_token.get('iat'),
+            "nbf": decoded_token.get('nbf'),
+            "exp": decoded_token.get('exp'),
+            "aio": decoded_token.get('aio'),
+            "azp": decoded_token.get('azp'),
+            "azpacr": decoded_token.get('azpacr'),
+            "oid": decoded_token.get('oid'),
+            "rh": decoded_token.get('rh'),
+            "sub": decoded_token.get('sub'),
+            "tid": decoded_token.get('tid'),
+            "uti": decoded_token.get('uti'),
+            "ver": decoded_token.get('ver')
         }
 
         return jsonify({
             "success": True,
-            "highlighted_claims": highlighted_claims,
-            "full_decoded": decoded_token,
+            "id": token_id,
             "token_type": token['token_type'],
-            "identifier": token['email'] or token['user']
+            "audience": decoded_token.get('aud'),
+            "permissions": permissions,
+            "identifier": token['email'] or token['user'],
+            "highlighted_claims": highlighted_claims,
+            "full_decoded": decoded_token
         })
 
     except jwt.exceptions.DecodeError as e:
@@ -335,6 +350,7 @@ def token_details(token_id):
     except Exception as e:
         print(f"Error in token_details: {str(e)}")  # Log the error
         return jsonify({"success": False, "error": str(e)}), 500
+
 
 
 @app.route('/get_access_token/<int:token_id>', methods=['GET'])
@@ -771,106 +787,26 @@ def object_analyzer():
         'SELECT id, oid, audience, email FROM tokens WHERE token_type = "access_token"').fetchall()
     conn.close()
     current_time = aware_utcnow()
+
+    object_endpoints_json = json.dumps(OBJECT_ENDPOINTS)
+
     return render_template('object_analyzer.html',
                            access_tokens=access_tokens,
-                           current_time=current_time)
+                           current_time=current_time,
+                           object_endpoints_json=object_endpoints_json)
 
 
-@app.route('/api/<object_type>')
-@app.route('/api/<object_type>/<action>')
-def get_objects(object_type, action=None):
+@app.route('/get_object_endpoints')
+def get_object_endpoints():
+    return jsonify(OBJECT_ENDPOINTS)
+
+@app.route('/api/applications/<action>', methods=['GET'])
+def get_application_data(action):
     token_id = request.args.get('token_id')
-    conn = get_db_connection()
-    token = conn.execute('SELECT token FROM tokens WHERE id = ? AND token_type = "access_token"',
-                         (token_id,)).fetchone()
-    conn.close()
+    application_id = request.args.get('user_id')  # We're reusing 'user_id' parameter for consistency
 
-    if not token:
-        return jsonify({"error": "Token not found"}), 404
-
-    access_token = token['token']
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/json"
-    }
-
-    base_url = "https://graph.microsoft.com/v1.0"
-
-    if object_type == 'users':
-        if action is None or action == 'list':
-            url = f"{base_url}/users"
-        elif action == 'guest':
-            url = f"{base_url}/users?$filter=userType eq 'Guest'"
-        elif action == 'licensed':
-            url = f"{base_url}/users?$filter=assignedLicenses/$count ne 0"
-        else:
-            return jsonify({"error": "Invalid action for users"}), 400
-    elif object_type == 'groups':
-        if action is None or action == 'list':
-            url = f"{base_url}/groups"
-        elif action == 'security':
-            url = f"{base_url}/groups?$filter=securityEnabled eq true"
-        elif action == 'm365':
-            url = f"{base_url}/groups?$filter=groupTypes/any(c:c eq 'Unified')"
-        else:
-            return jsonify({"error": "Invalid action for groups"}), 400
-    elif object_type == 'servicePrincipals':
-        if action is None or action == 'list':
-            url = f"{base_url}/servicePrincipals"
-        elif action == 'app':
-            url = f"{base_url}/servicePrincipals?$filter=servicePrincipalType eq 'Application'"
-        elif action == 'managed':
-            url = f"{base_url}/servicePrincipals?$filter=servicePrincipalType eq 'ManagedIdentity'"
-        else:
-            return jsonify({"error": "Invalid action for servicePrincipals"}), 400
-    else:
-        return jsonify({"error": "Invalid object type"}), 400
-
-    try:
-        objects = get_all_pages(url, headers)
-        return jsonify(objects)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route('/api/users')
-def get_users():
-    token_id = request.args.get('token_id')
-    if not token_id:
-        return jsonify({"error": "Token ID is required"}), 400
-
-    try:
-        conn = get_db_connection()
-        token = conn.execute('SELECT token FROM tokens WHERE id = ? AND token_type = "access_token"',
-                             (token_id,)).fetchone()
-        conn.close()
-
-        if not token:
-            return jsonify({"error": "Token not found"}), 404
-
-        access_token = token['token']
-        headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json"
-        }
-
-        base_url = "https://graph.microsoft.com/v1.0"
-        url = f"{base_url}/users"
-
-        users = get_all_pages(url, headers)
-        return jsonify(users)
-    except Exception as e:
-        app.logger.error(f"Error in get_users: {str(e)}")
-        return jsonify({"error": f"An error occurred: {str(e)}"}), 500
-
-
-@app.route('/api/users/<action>', methods=['GET', 'POST'])
-def get_user_data(action):
-    token_id = request.args.get('token_id')
-    user_id = request.args.get('user_id')
-
-    if not user_id:
-        return jsonify({"error": "User ID is required"}), 400
+    if not application_id:
+        return jsonify({"error": "Application ID is required"}), 400
 
     conn = get_db_connection()
     token = conn.execute('SELECT token FROM tokens WHERE id = ? AND token_type = "access_token"',
@@ -889,20 +825,10 @@ def get_user_data(action):
     base_url = "https://graph.microsoft.com/v1.0"
 
     action_urls = {
-        "appRoleAssignments": f"{base_url}/users/{user_id}/appRoleAssignments",
-        "calendars": f"{base_url}/users/{user_id}/calendars",
-        "oauth2PermissionGrants": f"{base_url}/users/{user_id}/oauth2PermissionGrants",
-        "ownedDevices": f"{base_url}/users/{user_id}/ownedDevices",
-        "ownedObjects": f"{base_url}/users/{user_id}/ownedObjects",
-        "registeredDevices": f"{base_url}/users/{user_id}/registeredDevices",
-        "notebooks": f"{base_url}/users/{user_id}/onenote/notebooks",
-        "directReports": f"{base_url}/users/{user_id}/directReports",
-        "people": f"{base_url}/users/{user_id}/people",
-        "contacts": f"{base_url}/users/{user_id}/contacts",
-        "plannerTasks": f"{base_url}/users/{user_id}/planner/tasks",
-        "sponsors": f"{base_url}/users/{user_id}/sponsors",
-        "memberOf": f"{base_url}/users/{user_id}/memberOf",
-        "getMemberGroups": f"{base_url}/users/{user_id}/getMemberGroups"
+        "extensionProperties": f"{base_url}/applications/{application_id}/extensionProperties",
+        "owners": f"{base_url}/applications/{application_id}/owners",
+        "tokenIssuancePolicies": f"{base_url}/applications/{application_id}/tokenIssuancePolicies",
+        "tokenLifetimePolicies": f"{base_url}/applications/{application_id}/tokenLifetimePolicies"
     }
 
     if action not in action_urls:
@@ -911,27 +837,113 @@ def get_user_data(action):
     url = action_urls[action]
 
     try:
-        if action == "getMemberGroups":
-            # This is a POST request
-            security_enabled_only = request.json.get('securityEnabledOnly', False)
-            response = requests.post(url, headers=headers, json={"securityEnabledOnly": security_enabled_only})
-            response.raise_for_status()
-            return jsonify(response.json())
-        else:
-            data = get_all_pages(url, headers)
-            return jsonify(data)
+        data = get_all_pages(url, headers)
+        return jsonify(data)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
-# Add a similar route for service principals
-@app.route('/api/servicePrincipals/<action>', methods=['GET', 'POST'])
-def get_service_principal_data(action):
+@app.route('/api/<object_type>')
+def get_objects(object_type):
     token_id = request.args.get('token_id')
-    service_principal_id = request.args.get('user_id')
+    if not token_id:
+        return jsonify({"error": "Token ID is required"}), 400
 
-    if not service_principal_id:
-        return jsonify({"error": "Service Principal ID is required"}), 400
+    # Normalize object_type to match keys in OBJECT_ENDPOINTS
+    normalized_object_type = object_type.capitalize()
+
+    # Special case for servicePrincipals
+    if normalized_object_type == 'Serviceprincipals':
+        normalized_object_type = 'ServicePrincipals'
+
+    # Check if the normalized object type exists in OBJECT_ENDPOINTS
+    if normalized_object_type not in OBJECT_ENDPOINTS:
+        return jsonify({"error": f"Invalid object type: {object_type}"}), 400
+
+    # Get the correct key for the object type (it's nested one level down)
+    object_type_key = next(iter(OBJECT_ENDPOINTS[normalized_object_type].keys()))
+
+    try:
+        conn = get_db_connection()
+        token_data = conn.execute('SELECT token, token_type FROM tokens WHERE id = ? AND token_type = "access_token"',
+                                  (token_id,)).fetchone()
+        conn.close()
+
+        if not token_data:
+            return jsonify({"error": "Token not found"}), 404
+
+        access_token = token_data['token']
+        token_type = token_data['token_type']
+
+        # Decode the token to get permissions
+        decoded_token = jwt.decode(access_token, options={"verify_signature": False})
+
+        # Check if it's an app or user token
+        is_app_token = 'roles' in decoded_token
+        permissions = decoded_token.get('roles', []) if is_app_token else decoded_token.get('scp', '').split()
+
+        app.logger.info(f"Token type: {'App' if is_app_token else 'User'}, Permissions: {permissions}")
+
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+
+        base_url = "https://graph.microsoft.com/v1.0"
+        endpoint_config = OBJECT_ENDPOINTS[normalized_object_type][object_type_key]
+        url = f"{base_url}{endpoint_config['path']}"
+
+        # For groups, we'll fetch all and filter server-side
+        if normalized_object_type == 'Groups':
+            url += "?$select=id,displayName,groupTypes"
+        elif 'filter' in endpoint_config:
+            url += f"?$filter={endpoint_config['filter']}"
+
+        app.logger.info(f"Fetching {object_type} from URL: {url}")
+        objects = []
+
+        while url:
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+            objects.extend(data.get('value', []))
+            url = data.get('@odata.nextLink')
+
+        app.logger.info(f"Fetched {len(objects)} {object_type}")
+
+        # For groups, filter out dynamic groups
+        if normalized_object_type == 'Groups':
+            original_count = len(objects)
+            objects = [group for group in objects if 'DynamicMembership' not in group.get('groupTypes', [])]
+            app.logger.info(f"Filtered out {original_count - len(objects)} dynamic groups")
+
+        app.logger.info(f"Returning {len(objects)} {object_type}")
+
+        return jsonify({
+            "objects": objects,
+            "permissions": permissions,
+            "is_app_token": is_app_token,
+            "total_fetched": len(objects)
+        })
+
+    except requests.exceptions.RequestException as e:
+        app.logger.error(f"Error in get_objects for {object_type}: {str(e)}")
+        if e.response is not None:
+            app.logger.error(f"Response content: {e.response.text}")
+        return jsonify({"error": f"An error occurred while fetching data: {str(e)}"}), 500
+
+    except Exception as e:
+        app.logger.error(f"Unexpected error in get_objects for {object_type}: {str(e)}")
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+
+@app.route('/api/<object_type>/<action>', methods=['GET'])
+def get_object_action(object_type, action):
+    token_id = request.args.get('token_id')
+    object_id = request.args.get('user_id')  # This is actually the object_id
+
+    if not token_id or not object_id:
+        return jsonify({"error": "Token ID and Object ID are required"}), 400
 
     conn = get_db_connection()
     token = conn.execute('SELECT token FROM tokens WHERE id = ? AND token_type = "access_token"',
@@ -948,83 +960,37 @@ def get_service_principal_data(action):
     }
 
     base_url = "https://graph.microsoft.com/v1.0"
-    internal_org_ids = ["f8cdef31-a31e-4b4a-93e4-5f571e91255a", "cdc5aeea-15c5-4db6-b079-fcadd2505dc2"]
+
+    normalized_object_type = object_type.capitalize()
+    if normalized_object_type == 'Serviceprincipals':
+        normalized_object_type = 'ServicePrincipals'
 
     try:
-        # First, get the details of the service principal
-        details_url = f"{base_url}/servicePrincipals/{service_principal_id}"
-        details_response = requests.get(details_url, headers=headers)
-        details_response.raise_for_status()
-        service_principal_details = details_response.json()
-
-        # Check if the appOwnerOrganizationId is in the list of internal org IDs
-        is_external = service_principal_details.get('appOwnerOrganizationId') not in internal_org_ids
-        service_principal_details['isExternalOwnership'] = is_external
-
-        # Then, perform the requested action
-        if action == 'details':
-            result = service_principal_details
-        elif action == 'appRoleAssignments':
-            url = f"{base_url}/servicePrincipals/{service_principal_id}/appRoleAssignments"
-            response = requests.get(url, headers=headers)
-        elif action == 'appRoleAssignedTo':
-            url = f"{base_url}/servicePrincipals/{service_principal_id}/appRoleAssignedTo"
-            response = requests.get(url, headers=headers)
-        elif action == 'oauth2PermissionGrants':
-            url = f"{base_url}/servicePrincipals/{service_principal_id}/oauth2PermissionGrants"
-            response = requests.get(url, headers=headers)
-        elif action == 'delegatedPermissionClassifications':
-            url = f"{base_url}/servicePrincipals/{service_principal_id}/delegatedPermissionClassifications"
-            response = requests.get(url, headers=headers)
-        elif action == 'owners':
-            url = f"{base_url}/servicePrincipals/{service_principal_id}/owners?$select=id,userPrincipalName,displayName"
-            response = requests.get(url, headers=headers)
-        elif action == 'claimsMappingPolicies':
-            url = f"{base_url}/servicePrincipals/{service_principal_id}/claimsMappingPolicies"
-            response = requests.get(url, headers=headers)
-        elif action == 'homeRealmDiscoveryPolicies':
-            url = f"{base_url}/servicePrincipals/{service_principal_id}/homeRealmDiscoveryPolicies"
-            response = requests.get(url, headers=headers)
-        elif action == 'tokenIssuancePolicies':
-            url = f"{base_url}/servicePrincipals/{service_principal_id}/tokenIssuancePolicies"
-            response = requests.get(url, headers=headers)
-        elif action == 'tokenLifetimePolicies':
-            url = f"{base_url}/servicePrincipals/{service_principal_id}/tokenLifetimePolicies"
-            response = requests.get(url, headers=headers)
-        elif action == 'memberOf':
-            url = f"{base_url}/servicePrincipals/{service_principal_id}/memberOf"
-            response = requests.get(url, headers=headers)
-        elif action == 'getMemberGroups':
-            url = f"{base_url}/servicePrincipals/{service_principal_id}/getMemberGroups"
-            body = {"securityEnabledOnly": False}
-            response = requests.post(url, headers=headers, json=body)
-        elif action == 'getMemberObjects':
-            url = f"{base_url}/servicePrincipals/{service_principal_id}/getMemberObjects"
-            body = {"securityEnabledOnly": False}
-            response = requests.post(url, headers=headers, json=body)
-        elif action == 'ownedObjects':
-            url = f"{base_url}/servicePrincipals/{service_principal_id}/ownedObjects"
-            response = requests.get(url, headers=headers)
-        else:
+        endpoint_config = OBJECT_ENDPOINTS[normalized_object_type][object_type.lower()]['actions'].get(action)
+        if not endpoint_config:
             return jsonify({"error": f"Invalid action: {action}"}), 400
 
-        if action != 'details':
-            response.raise_for_status()
-            data = response.json()
-            result = data.get('value', data)
+        # Use the full path from the endpoint configuration
+        url = f"{base_url}{endpoint_config['path'].format(id=object_id)}"
 
-        # Combine the service principal details with the action result
-        combined_result = {
-            "servicePrincipalDetails": service_principal_details,
-            "actionResult": result,
-            "isExternalOwnership": is_external
-        }
+        app.logger.debug(f"Request URL: {url}")  # Log the URL for debugging
 
-        return jsonify(combined_result)
+        # Handle POST requests
+        if endpoint_config.get('method') == 'POST':
+            data = {"securityEnabledOnly": False}
+            response = requests.post(url, headers=headers, json=data)
+        else:
+            response = requests.get(url, headers=headers)
 
+        response.raise_for_status()
+        return jsonify(response.json())
+
+    except KeyError:
+        return jsonify({"error": f"Invalid object type or action: {object_type}/{action}"}), 400
+    except requests.exceptions.HTTPError as e:
+        return jsonify({"error": str(e)}), e.response.status_code
     except requests.exceptions.RequestException as e:
-        app.logger.error(f"Error in get_service_principal_data: {str(e)}")
-        error_message = str(e)
-        if e.response is not None:
-            error_message = e.response.text
-        return jsonify({"error": f"Error fetching data: {error_message}"}), 500
+        return jsonify({"error": f"Request failed: {str(e)}"}), 500
+    except Exception as e:
+        app.logger.error(f"Unexpected error in get_object_action: {str(e)}")
+        return jsonify({"error": "An unexpected error occurred"}), 500

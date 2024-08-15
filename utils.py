@@ -6,6 +6,7 @@ from models import get_db_connection
 from flask import jsonify
 from datetime import datetime, timezone
 import sqlite3
+from flask import current_app
 
 
 def determine_token_type(token):
@@ -195,10 +196,18 @@ def naive_utcfromtimestamp(timestamp):
 def get_all_pages(url, headers):
     all_data = []
     while url:
-        response = requests.get(url, headers=headers)
-        if response.status_code != 200:
-            raise Exception(f"Error fetching data: {response.status_code}")
-        data = response.json()
-        all_data.extend(data.get('value', []))
-        url = data.get('@odata.nextLink')
+        try:
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+            all_data.extend(data.get('value', []))
+            url = data.get('@odata.nextLink')
+        except requests.exceptions.RequestException as e:
+            current_app.logger.error(f"Error fetching data: {e}")
+            if e.response is not None:
+                current_app.logger.error(f"Response content: {e.response.text}")
+            raise Exception(f"Error fetching data: {e.response.status_code if e.response else str(e)}")
     return all_data
+
+
+

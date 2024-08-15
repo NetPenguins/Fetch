@@ -284,9 +284,9 @@ function showTokenDetails(tokenId) {
                 const modalBody = document.querySelector('#tokenDetailsModal .modal-body');
                 modalBody.innerHTML = `
                     <h6>Highlighted Claims</h6>
-                    <pre class="bg-light p-3 rounded"><code>${JSON.stringify(data.highlighted_claims, null, 2)}</code></pre>
+                    <pre class="bg-light p-3 rounded"><code>${JSON.stringify(data.highlighted_claims || {}, null, 2)}</code></pre>
                     <h6>Full Decoded Token</h6>
-                    <pre id="fullDecodedToken" class="bg-light p-3 rounded"><code>${JSON.stringify(data.full_decoded, null, 2)}</code></pre>
+                    <pre id="fullDecodedToken" class="bg-light p-3 rounded"><code>${JSON.stringify(data.full_decoded || {}, null, 2)}</code></pre>
                 `;
 
                 const modal = new bootstrap.Modal(document.getElementById('tokenDetailsModal'));

@@ -28,6 +28,9 @@
                     <div class="col-6">
                         <button class="btn btn-primary w-100 object-type-btn" data-object-type="servicePrincipals">Service Principals</button>
                     </div>
+                <div class="col-6">
+                        <button class="btn btn-primary w-100 object-type-btn" data-object-type="applications">Applications</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -77,6 +80,20 @@
         white-space: pre-wrap;
         word-break: break-word;
     }
+    .action-btn.accessible {
+    background-color: #4CAF50;
+    color: white;
+    }
+    .action-btn.partial-access {
+    background-color: #FFC107;
+    color: black;
+    }
+    .action-btn.inaccessible {
+    background-color: #F44336;
+    color: white;
+    opacity: 0.5;
+    }
+</style>
 
 </style>
 {% endblock %}
