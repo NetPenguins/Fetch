@@ -33,72 +33,8 @@
 {% endblock %}
 
 {% block extra_css %}
-<style>
-/* Action buttons styles */
-#actionButtons {
-    column-count: 4;
-    column-gap: 15px;
-}
-
-.category-wrapper {
-    break-inside: avoid-column;
-    page-break-inside: avoid;
-    margin-bottom: 10px;
-    background-color: #f8f9fa;
-    border-radius: 4px;
-    box-shadow: 0 1px 1px rgba(0,0,0,0.1);
-    overflow: hidden;
-}
-
-.category-header {
-    cursor: pointer;
-    user-select: none;
-    font-weight: bold;
-    font-size: 14px;
-    padding: 10px;
-    background-color: #e9ecef;
-    border-bottom: 1px solid #dee2e6;
-    transition: background-color 0.3s;
-    display: flex;
-    align-items: center;
-}
-
-.category-header:hover {
-    background-color: #dee2e6;
-}
-
-.category-header.highlighted {
-    background-color: lightgreen;
-}
-
-.category-header.potentially-allowed {
-    background-color: yellow;
-}
-
-.category-checkbox {
-    margin-right: 10px;
-}
-
-/* Media queries for responsive columns */
-@media (max-width: 1200px) {
-    #actionButtons {
-        column-count: 3;
-    }
-}
-
-@media (max-width: 992px) {
-    #actionButtons {
-        column-count: 2;
-    }
-}
-
-@media (max-width: 768px) {
-    #actionButtons {
-        column-count: 1;
-    }
-}
-
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/graph.css') }}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
 {% endblock %}
 
 {% block scripts %}

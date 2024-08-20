@@ -245,16 +245,9 @@ function performGraphAction(action) {
         .then(data => {
             const resultsDiv = document.getElementById('results');
             if (resultsDiv) {
-                const actionResult = document.createElement('div');
-                actionResult.className = 'mb-4';
-                actionResult.innerHTML = `
-                    <h3>${action.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</h3>
-                    <div class="code-block-container">
-                        <button class="btn btn-sm btn-secondary copy-btn" onclick="copyToClipboard('${action}CodeBlock')">Copy</button>
-                        <pre><code id="${action}CodeBlock" class="json">${JSON.stringify(data, null, 2)}</code></pre>
-                    </div>
-                `;
-                resultsDiv.appendChild(actionResult);
+                const resultSection = createResultSection(action, data, tokenId, action);
+                resultsDiv.appendChild(resultSection);
+                sortResults();
             } else {
                 console.error('Results div not found');
             }
@@ -263,34 +256,99 @@ function performGraphAction(action) {
             console.error('Error:', error);
             const resultsDiv = document.getElementById('results');
             if (resultsDiv) {
-                const errorDiv = document.createElement('div');
-                errorDiv.className = 'alert alert-danger';
-                errorDiv.textContent = `Error executing ${action}: ${error.message}`;
-                resultsDiv.appendChild(errorDiv);
+                const errorSection = createResultSection(action, { error: error.message, status: 'Error' }, tokenId, action);
+                resultsDiv.appendChild(errorSection);
+                sortResults();
             } else {
                 console.error('Results div not found');
             }
         });
 }
 
-function copyToClipboard(elementId) {
-    const el = document.getElementById(elementId);
-    let range = document.createRange();
-    range.selectNodeContents(el);
-    let sel = window.getSelection();
-    sel.removeAllRanges();
-    sel.addRange(range);
-    document.execCommand('copy');
-    sel.removeAllRanges();
 
-    // Change button text to indicate copy was successful
-    const copyBtn = el.parentElement.querySelector('.copy-btn');
+function createResultSection(action, data, objectId, displayName) {
+    const resultSection = document.createElement('div');
+    resultSection.id = `result-${objectId}-${action}`;
+    resultSection.className = 'mb-3';
+
+    let icon, statusClass, status, content;
+    if (data.error) {
+        icon = 'bi-x-octagon';
+        statusClass = 'text-danger';
+        status = 'error';
+        content = `Error: ${data.error} (Status: ${data.status})`;
+    } else if (data === undefined || (Array.isArray(data) && data.length === 0)) {
+        icon = 'bi-envelope';
+        statusClass = 'text-warning';
+        status = 'empty';
+        content = 'No data available';
+    } else {
+        icon = 'bi-chevron-down';
+        statusClass = 'text-success';
+        status = 'success';
+        content = JSON.stringify(data, null, 2);
+    }
+
+    resultSection.innerHTML = `
+        <div class="card" data-status="${status}">
+            <div class="card-header" id="heading-${objectId}-${action}">
+                <h5 class="mb-0">
+                    <button class="btn btn-link collapsed ${statusClass}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${objectId}-${action}">
+                        ${displayName} <i class="bi ${icon}"></i>
+                    </button>
+                </h5>
+            </div>
+            <div id="collapse-${objectId}-${action}" class="collapse" aria-labelledby="heading-${objectId}-${action}">
+                <div class="card-body">
+                    <pre class="results-container"><code>${content}</code></pre>
+                    <button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    resultSection.querySelector('.copy-btn').addEventListener('click', () => copyToClipboard(content));
+    resultSection.querySelector('.btn-link').addEventListener('click', function() {
+        this.querySelector('i').classList.toggle('bi-chevron-down');
+        this.querySelector('i').classList.toggle('bi-chevron-up');
+    });
+
+    return resultSection;
+}
+
+function sortResults() {
+    const sortOrder = ['success', 'empty', 'error'];
+    const resultsDivs = Array.from(document.getElementById('results').children);
+
+    resultsDivs.sort((a, b) => {
+        const statusA = a.querySelector('.card')?.dataset.status || '';
+        const statusB = b.querySelector('.card')?.dataset.status || '';
+        return sortOrder.indexOf(statusA) - sortOrder.indexOf(statusB);
+    });
+
+    const resultsContainer = document.getElementById('results');
+    resultsDivs.forEach(element => resultsContainer.appendChild(element));
+}
+
+
+
+function copyToClipboard(text) {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+
+    // Show a temporary "Copied!" message
+    const copyBtn = event.target;
     const originalText = copyBtn.textContent;
     copyBtn.textContent = 'Copied!';
     setTimeout(() => {
         copyBtn.textContent = originalText;
     }, 2000);
 }
+
 
 function updateCurrentTime() {
     const currentTimeElement = document.getElementById('currentTime');
