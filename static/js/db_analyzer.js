@@ -10,97 +10,94 @@ document.addEventListener('DOMContentLoaded', function() {
             checkAndHighlightPermissions(this.value);
         });
     }
+
+    document.getElementById('selectAllActions').addEventListener('click', selectAllActions);
+    document.getElementById('deselectAllActions').addEventListener('click', deselectAllActions);
+    document.getElementById('executeSelected').addEventListener('click', executeSelectedActions);
 });
 
-function updateCurrentTime() {
-    const currentTimeElement = document.getElementById('currentTime');
-    if (currentTimeElement) {
-        const now = new Date();
-        currentTimeElement.textContent = now.toUTCString();
-    }
-}
 
 function setupActionButtons() {
     const actionButtons = [
         {
             name: 'Get Users with Privileged Roles',
             permissions: ['RoleManagement.Read.Directory', 'RoleManagement.ReadWrite.Directory', 'Directory.Read.All', 'Directory.ReadWrite.All'],
-            action: getPrivilegedRoles
+            action: 'get_privileged_roles'
         },
         {
             name: 'Get Role Eligibility Schedules',
             permissions: ['RoleEligibilitySchedule.Read.Directory', 'RoleManagement.Read.Directory', 'Directory.Read.All'],
-            action: getRoleEligibilitySchedules
+            action: 'get_role_eligibility_schedules'
         },
         {
             name: 'Get User Consent Requests',
             permissions: ['ConsentRequest.Read.All', 'ConsentRequest.ReadWrite.All'],
-            action: getUserConsentRequests
+            action: 'get_user_consent_requests'
         },
         {
             name: 'Check for Mismatched Service Principals',
             permissions: ['Application.Read.All', 'Application.ReadWrite.All', 'Directory.Read.All', 'Directory.ReadWrite.All'],
-            action: checkMismatchedServicePrincipals
+            action: 'check_mismatched_service_principals'
         },
         {
             name: 'Check Expiring Application Passwords',
             permissions: ['Application.Read.All', 'Application.ReadWrite.All', 'Directory.Read.All', 'Directory.ReadWrite.All'],
-            action: checkExpiringAppPasswords
+            action: 'check_expiring_app_passwords'
         },
         {
             name: 'Get Custom Roles',
             permissions: ['RoleManagement.Read.Directory', 'RoleManagement.ReadWrite.Directory', 'Directory.Read.All', 'Directory.ReadWrite.All'],
-            action: getCustomRoles
+            action: 'get_custom_roles'
         },
         {
             name: 'Get Synced Objects',
             permissions: ['User.Read.All', 'Group.Read.All', 'Directory.Read.All'],
-            action: getSyncedObjects
+            action: 'get_synced_objects'
         },
-                {
+        {
             name: 'Get Owned Devices',
             permissions: ['User.Read', 'Directory.Read.All', 'Directory.ReadWrite.All', 'User.Read.All', 'User.ReadWrite.All'],
-            action: getOwnedDevices
+            action: 'get_owned_devices'
         },
         {
             name: 'Get Owned Objects',
             permissions: ['User.Read', 'Directory.Read.All', 'Directory.ReadWrite.All', 'User.Read.All', 'User.ReadWrite.All'],
-            action: getOwnedObjects
+            action: 'get_owned_objects'
         },
         {
             name: 'Get Created Objects',
             permissions: ['User.Read', 'Directory.Read.All', 'Directory.ReadWrite.All', 'User.Read.All', 'User.ReadWrite', 'User.ReadWrite.All'],
-            action: getCreatedObjects
+            action: 'get_created_objects'
         },
         {
             name: 'Get Microsoft 365 Groups',
             permissions: ['GroupMember.Read.All', 'Group.ReadWrite.All', 'Directory.Read.All', 'Directory.ReadWrite.All', 'Group.Read.All'],
-            action: getM365Groups
+            action: 'get_m365_groups'
         },
         {
             name: 'Get Security Groups',
             permissions: ['GroupMember.Read.All', 'Group.ReadWrite.All', 'Directory.Read.All', 'Directory.ReadWrite.All', 'Group.Read.All'],
-            action: getSecurityGroups
+            action: 'get_security_groups'
         },
         {
             name: 'Get Mail-Enabled Security Groups',
             permissions: ['GroupMember.Read.All', 'Group.ReadWrite.All', 'Directory.Read.All', 'Directory.ReadWrite.All', 'Group.Read.All'],
-            action: getMailEnabledSecurityGroups
+            action: 'get_mail_enabled_security_groups'
         },
         {
             name: 'Get Distribution Groups',
             permissions: ['GroupMember.Read.All', 'Group.ReadWrite.All', 'Directory.Read.All', 'Directory.ReadWrite.All', 'Group.Read.All'],
-            action: getDistributionGroups
+            action: 'get_distribution_groups'
         },
         {
             name: 'Get Guest Users',
             permissions: ['User.Read.All', 'Directory.Read.All'],
-            action: getGuestUsers
+            action: 'get_guest_users'
         },
         {
             name: 'Get App Role Assignments',
             permissions: ['Directory.Read.All'],
-            action: getAppRoleAssignments
+            action: 'get_app_role_assignments'
         },
     ];
 
@@ -108,18 +105,65 @@ function setupActionButtons() {
     if (buttonContainer) {
         buttonContainer.innerHTML = ''; // Clear existing buttons
         actionButtons.forEach(button => {
-            const btn = document.createElement('button');
-            btn.textContent = button.name;
-            btn.className = 'btn btn-secondary me-2 mb-2';
-            btn.onclick = button.action;
+            const col = document.createElement('div');
+            col.className = 'col-12 col-md-6 col-lg-4 mb-2';
+            const btn = document.createElement('div');
+            btn.className = 'category-wrapper';
+            btn.innerHTML = `
+                <div class="category-header">
+                    <input type="checkbox" class="category-checkbox" value="${button.action}">
+                    ${button.name}
+                </div>
+            `;
             btn.dataset.permissions = JSON.stringify(button.permissions);
-            buttonContainer.appendChild(btn);
+            btn.onclick = function(e) {
+                if (e.target.type !== 'checkbox') {
+                    const checkbox = this.querySelector('input[type="checkbox"]');
+                    checkbox.checked = !checkbox.checked;
+                }
+                e.preventDefault();
+            };
+            col.appendChild(btn);
+            buttonContainer.appendChild(col);
         });
     } else {
         console.error('Button container not found');
     }
 }
 
+
+
+
+
+function selectAllActions() {
+    document.querySelectorAll('#actionButtons input[type="checkbox"]').forEach(cb => cb.checked = true);
+}
+
+function deselectAllActions() {
+    document.querySelectorAll('#actionButtons input[type="checkbox"]').forEach(cb => cb.checked = false);
+}
+
+function executeSelectedActions() {
+    const selectedActions = Array.from(document.querySelectorAll('#actionButtons input[type="checkbox"]:checked'))
+        .map(cb => cb.value);
+
+    if (selectedActions.length === 0) {
+        alert("Please select at least one action to execute.");
+        return;
+    }
+
+    const tokenId = document.getElementById('tokenSelect').value;
+    if (!tokenId) {
+        alert("Please select an access token first.");
+        return;
+    }
+
+    // Clear previous results
+    document.getElementById('results').innerHTML = '';
+
+    // Execute each selected action
+    selectedActions.forEach(action => performGraphAction(action));
+}
 
 function checkAndHighlightPermissions(tokenId) {
     if (!tokenId) {
@@ -131,60 +175,8 @@ function checkAndHighlightPermissions(tokenId) {
         .then(response => response.json())
         .then(data => {
             if (data.success && data.permissions) {
-                // Display SCP as clickable links
-                const tokenScpDiv = document.getElementById('tokenScp');
-                const tokenScpContent = document.getElementById('tokenScpContent');
-                tokenScpContent.innerHTML = data.permissions.map(perm =>
-                    `<a href="https://graphpermissions.merill.net/permission/${perm}" target="_blank">${perm}</a>`
-                ).join(' ');
-                tokenScpDiv.style.display = 'block';
-
-                const permissions = new Set(data.permissions.map(p => p.replace('.ReadWrite.', '.Read.')));
-                const accessAsUserPermissions = new Set(data.permissions
-                    .filter(p => p.includes('.AccessAsUser.'))
-                    .map(p => p.split('.AccessAsUser.')[0]));
-
-                // Define high-level permissions
-                const highLevelPermissions = new Set([
-                    'Directory.Read.All',
-                    'Directory.ReadWrite.All',
-                    'ConsentRequest.Read.All',
-                    'ConsentRequest.ReadWrite.All'
-                ]);
-
-                document.querySelectorAll('#actionButtons button').forEach(button => {
-                    const requiredPermissions = JSON.parse(button.dataset.permissions);
-                    let hasPermission = false;
-                    let potentiallyAllowed = false;
-
-                    // Check if the token has any high-level permissions
-                    const hasHighLevelPermission = [...highLevelPermissions].some(p => permissions.has(p));
-
-                    if (hasHighLevelPermission) {
-                        hasPermission = true;
-                    } else {
-                        for (const perm of requiredPermissions) {
-                            const readPerm = perm.replace('.ReadWrite.', '.Read.');
-                            if (permissions.has(perm) || permissions.has(readPerm)) {
-                                hasPermission = true;
-                                break;
-                            } else if (accessAsUserPermissions.has(perm.split('.')[0])) {
-                                potentiallyAllowed = true;
-                            }
-                        }
-                    }
-
-                    if (hasPermission) {
-                        button.classList.remove('btn-secondary', 'btn-warning');
-                        button.classList.add('btn-primary');
-                    } else if (potentiallyAllowed) {
-                        button.classList.remove('btn-secondary', 'btn-primary');
-                        button.classList.add('btn-warning');
-                    } else {
-                        button.classList.remove('btn-primary', 'btn-warning');
-                        button.classList.add('btn-secondary');
-                    }
-                });
+                displayTokenPermissions(data.permissions);
+                highlightActionButtons(data.permissions);
             } else {
                 document.getElementById('tokenScp').style.display = 'none';
             }
@@ -196,72 +188,52 @@ function checkAndHighlightPermissions(tokenId) {
 }
 
 
-function getPrivilegedRoles() {
-    performGraphAction('get_privileged_roles');
+
+function displayTokenPermissions(permissions) {
+    const tokenScpDiv = document.getElementById('tokenScp');
+    const tokenScpContent = document.getElementById('tokenScpContent');
+    tokenScpContent.innerHTML = permissions.map(perm =>
+        `<a href="https://graphpermissions.merill.net/permission/${perm}" target="_blank">${perm}</a>`
+    ).join(' ');
+    tokenScpDiv.style.display = 'block';
 }
 
-function getRoleEligibilitySchedules() {
-    performGraphAction('get_role_eligibility_schedules');
-}
+function highlightActionButtons(permissions) {
+    const permSet = new Set(permissions.map(p => p.replace('.ReadWrite.', '.Read.')));
+    const accessAsUserPermissions = new Set(permissions
+        .filter(p => p.includes('.AccessAsUser.'))
+        .map(p => p.split('.')[0]));
 
-function checkExpiringAppPasswords() {
-    performGraphAction('check_expiring_app_passwords');
-}
+    document.querySelectorAll('#actionButtons .category-wrapper').forEach(button => {
+        const requiredPermissions = JSON.parse(button.dataset.permissions);
+        let hasPermission = false;
+        let potentialAccess = false;
 
-function getSyncedObjects() {
-    performGraphAction('get_synced_objects');
-}
+        for (const perm of requiredPermissions) {
+            if (permSet.has(perm) || permSet.has(perm.replace('.ReadWrite.', '.Read.'))) {
+                hasPermission = true;
+                break;
+            } else if (accessAsUserPermissions.has(perm.split('.')[0])) {
+                potentialAccess = true;
+            }
+        }
 
-function getUserConsentRequests() {
-    performGraphAction('get_user_consent_requests');
-}
+        const header = button.querySelector('.category-header');
+        header.classList.remove('highlighted', 'potentially-allowed');
+        if (hasPermission) {
+            header.classList.add('highlighted');
+        } else if (potentialAccess) {
+            header.classList.add('potentially-allowed');
+        }
 
-function checkMismatchedServicePrincipals() {
-    performGraphAction('get_mismatched_service_principals');
-}
-
-function getOwnedDevices() {
-    performGraphAction('get_owned_devices');
-}
-
-function getOwnedObjects() {
-    performGraphAction('get_owned_objects');
-}
-
-function getCreatedObjects() {
-    performGraphAction('get_created_objects');
-}
-
-function getM365Groups() {
-    performGraphAction('get_m365_groups');
-}
-
-function getSecurityGroups() {
-    performGraphAction('get_security_groups');
-}
-
-function getMailEnabledSecurityGroups() {
-    performGraphAction('get_mail_enabled_security_groups');
-}
-
-function getDistributionGroups() {
-    performGraphAction('get_distribution_groups');
-}
-
-function getGuestUsers() {
-    performGraphAction('get_guest_users');
-}
-
-function getAppRoleAssignments() {
-    performGraphAction('get_app_role_assignments');
+        const checkbox = button.querySelector('input[type="checkbox"]');
+        checkbox.disabled = !hasPermission && !potentialAccess;
+    });
 }
 
 
 
 
-function getCustomRoles() {
-    performGraphAction('get_custom_roles');
-}
 
 function performGraphAction(action) {
     const tokenId = document.getElementById('tokenSelect').value;
@@ -275,13 +247,16 @@ function performGraphAction(action) {
         .then(data => {
             const resultsDiv = document.getElementById('results');
             if (resultsDiv) {
-                resultsDiv.innerHTML = `
-                    <h2>${action.replace(/_/g, ' ').capitalize()}</h2>
+                const actionResult = document.createElement('div');
+                actionResult.className = 'mb-4';
+                actionResult.innerHTML = `
+                    <h3>${action.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</h3>
                     <div class="code-block-container">
-                        <button class="btn btn-sm btn-secondary copy-btn" onclick="copyToClipboard('resultCodeBlock')">Copy</button>
-                        <pre><code id="resultCodeBlock" class="json">${JSON.stringify(data, null, 2)}</code></pre>
+                        <button class="btn btn-sm btn-secondary copy-btn" onclick="copyToClipboard('${action}CodeBlock')">Copy</button>
+                        <pre><code id="${action}CodeBlock" class="json">${JSON.stringify(data, null, 2)}</code></pre>
                     </div>
                 `;
+                resultsDiv.appendChild(actionResult);
             } else {
                 console.error('Results div not found');
             }
@@ -290,7 +265,10 @@ function performGraphAction(action) {
             console.error('Error:', error);
             const resultsDiv = document.getElementById('results');
             if (resultsDiv) {
-                resultsDiv.innerHTML = `<p class="text-danger">Error: ${error.message}</p>`;
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'alert alert-danger';
+                errorDiv.textContent = `Error executing ${action}: ${error.message}`;
+                resultsDiv.appendChild(errorDiv);
             } else {
                 console.error('Results div not found');
             }
@@ -316,6 +294,10 @@ function copyToClipboard(elementId) {
     }, 2000);
 }
 
-String.prototype.capitalize = function() {
-    return this.charAt(0).toUpperCase() + this.slice(1);
+function updateCurrentTime() {
+    const currentTimeElement = document.getElementById('currentTime');
+    if (currentTimeElement) {
+        const now = new Date();
+        currentTimeElement.textContent = now.toUTCString();
+    }
 }
