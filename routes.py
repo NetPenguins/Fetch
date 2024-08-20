@@ -112,7 +112,7 @@ def graph_enumerator():
 @app.route('/enumerate_graph', methods=['POST'])
 def enumerate_graph():
     token_id = request.form.get('token_id')
-    endpoints = request.form.getlist('endpoints')
+    endpoint = request.form.get('endpoints')  # Now expecting a single endpoint
 
     conn = get_db_connection()
     token = conn.execute('SELECT token FROM tokens WHERE id = ? AND token_type = "access_token"',
@@ -149,6 +149,7 @@ def enumerate_graph():
                 "response_text": response_text
             }
 
+
     def get_nested_endpoint(data, keys):
         for key in keys:
             if key in data:
@@ -157,11 +158,10 @@ def enumerate_graph():
                 return None
         return data
 
-    for endpoint in endpoints:
-        keys = endpoint.split('.')
-        endpoint_data = get_nested_endpoint(GRAPH_ENDPOINTS, keys)
-        if isinstance(endpoint_data, dict) and 'path' in endpoint_data:
-            results[endpoint] = fetch_endpoint(endpoint_data['path'])
+    keys = endpoint.split('.')
+    endpoint_data = get_nested_endpoint(GRAPH_ENDPOINTS, keys)
+    if isinstance(endpoint_data, dict) and 'path' in endpoint_data:
+        results[endpoint] = fetch_endpoint(endpoint_data['path'])
 
     return jsonify(results)
 
@@ -475,11 +475,6 @@ def graph_action(action, token_id):
                     "expiration": schedule.get("scheduleInfo", {}).get("expiration", {})
                 }
                 processed_schedules.append(processed_schedule)
-
-            return jsonify({
-                "totalSchedules": len(processed_schedules),
-                "roleEligibilitySchedules": processed_schedules
-            })
 
             return jsonify({
                 "totalSchedules": len(processed_schedules),

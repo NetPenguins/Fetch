@@ -10,6 +10,7 @@ const TOKEN_SCP_ID = 'tokenScp';
 const TOKEN_SCP_CONTENT_ID = 'tokenScpContent';
 const CURRENT_TIME_ID = 'currentTime';
 
+
 // Global state
 let GRAPH_ENDPOINTS = null;
 let FLATTENED_ENDPOINTS = null;
@@ -19,12 +20,22 @@ const tokenSelect = document.getElementById(TOKEN_SELECT_ID);
 const endpointsList = document.getElementById(ENDPOINTS_LIST_ID);
 const selectAllBtn = document.getElementById(SELECT_ALL_BTN_ID);
 const deselectAllBtn = document.getElementById(DESELECT_ALL_BTN_ID);
-const enumerateBtn = document.getElementById(ENUMERATE_BTN_ID);
+let enumerateBtn = document.getElementById(ENUMERATE_BTN_ID);
 
 // Event Listeners
-document.addEventListener('DOMContentLoaded', initializeApp);
+document.addEventListener('DOMContentLoaded', initializeApp, { once: true });
 
-
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
 
 function flattenEndpoints(endpoints, prefix = '') {
     return Object.entries(endpoints).reduce((acc, [key, value]) => {
@@ -70,7 +81,6 @@ function createEndpointsList(endpoints) {
         endpointsList.appendChild(categoryWrapper);
     }
 }
-
 
 function createCategoryWrapper(category, subcategories) {
     const categoryWrapper = document.createElement('div');
@@ -121,6 +131,19 @@ function createCategoryContent(category, subcategories) {
     return categoryContent;
 }
 
+function toggleCategory(event) {
+    if (event.target.type === 'checkbox') return;
+    const content = this.nextElementSibling;
+    const toggle = this.querySelector('.category-toggle');
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        toggle.textContent = '−';
+    } else {
+        content.style.display = 'none';
+        toggle.textContent = '+';
+    }
+}
+
 function createSubcategoryDiv(category, subcategory, data) {
     const subcategoryDiv = document.createElement('div');
     subcategoryDiv.className = 'subcategory';
@@ -169,7 +192,6 @@ function addEndpointListeners(categoryContent, category, endpointCount) {
     });
 }
 
-// Setup event listeners
 function setupEventListeners() {
     if (tokenSelect) {
         tokenSelect.addEventListener('change', () => checkAndHighlightPermissions(tokenSelect.value));
@@ -184,11 +206,24 @@ function setupEventListeners() {
     }
 
     if (enumerateBtn) {
-        enumerateBtn.addEventListener('click', enumerateGraph);
+        // Remove all existing click event listeners
+        const oldEnumerateBtn = enumerateBtn.cloneNode(true);
+        enumerateBtn.parentNode.replaceChild(oldEnumerateBtn, enumerateBtn);
+        enumerateBtn = oldEnumerateBtn;
+
+        // Create a debounced version of enumerateGraph
+        const debouncedEnumerate = debounce(() => {
+            enumerateGraph().catch(error => {
+                console.error('Error during enumeration:', error);
+                alert(`An error occurred during enumeration: ${error.message}`);
+            });
+        }, 300); // 300ms debounce time
+
+        // Add the new listener
+        enumerateBtn.addEventListener('click', debouncedEnumerate);
     }
 }
 
-// Check and highlight permissions
 async function checkAndHighlightPermissions(tokenId) {
     if (!tokenId) {
         hideTokenScp();
@@ -205,7 +240,6 @@ async function checkAndHighlightPermissions(tokenId) {
     }
 }
 
-// Fetch token permissions
 async function fetchTokenPermissions(tokenId) {
     const response = await fetch(`/get_token_permissions/${tokenId}`);
     const data = await response.json();
@@ -215,7 +249,6 @@ async function fetchTokenPermissions(tokenId) {
     return data.permissions;
 }
 
-// Display token permissions
 function displayTokenPermissions(permissions) {
     const tokenScpDiv = document.getElementById(TOKEN_SCP_ID);
     const tokenScpContent = document.getElementById(TOKEN_SCP_CONTENT_ID);
@@ -225,12 +258,10 @@ function displayTokenPermissions(permissions) {
     tokenScpDiv.style.display = 'block';
 }
 
-// Hide token SCP
 function hideTokenScp() {
     document.getElementById(TOKEN_SCP_ID).style.display = 'none';
 }
 
-// Highlight endpoints based on permissions
 function highlightEndpoints(permissions) {
     const permSet = new Set(permissions.map(p => p.replace('.ReadWrite.', '.Read.')));
     const accessAsUserPermissions = new Set(permissions
@@ -240,7 +271,6 @@ function highlightEndpoints(permissions) {
     const endpointStatus = {};
 
     document.querySelectorAll('.category-wrapper').forEach(category => {
-        const categoryName = category.querySelector('.category-header').textContent.trim().replace(/^[−-]\s*/, '');
         const endpointCheckboxes = category.querySelectorAll('input[name="endpoints"]');
 
         endpointCheckboxes.forEach(checkbox => {
@@ -271,21 +301,20 @@ function getEndpointStatus(endpointData, permSet, accessAsUserPermissions) {
     if (permSet.has(delegatedPerm) || permSet.has(appPerm)) {
         return 'allowed';
     } else if ((delegatedPerm && accessAsUserPermissions.has(delegatedPerm.split('.')[0])) ||
-               (appPerm && accessAsUserPermissions.has(appPerm.split('.')[0]))) {
+        (appPerm && accessAsUserPermissions.has(appPerm.split('.')[0]))) {
         return 'potentially-allowed';
     } else {
         return 'not-allowed';
     }
 }
 
-// Organize endpoints based on status
 function organizeEndpoints(endpointStatus) {
     const categories = {};
 
     Object.entries(endpointStatus).forEach(([endpoint, status]) => {
-        const [category, ...rest] = endpoint.split('.');
+        const [category] = endpoint.split('.');
         if (!categories[category]) {
-            categories[category] = { allowed: [], potentiallyAllowed: [], notAllowed: [], status: 'not-allowed' };
+            categories[category] = {allowed: [], potentiallyAllowed: [], notAllowed: [], status: 'not-allowed'};
         }
 
         const endpointItem = document.querySelector(`input[value="${endpoint}"]`).closest('.endpoint-item');
@@ -322,7 +351,7 @@ function updateCategoryStatus(category, status, endpointItem) {
 
 function sortCategories(categories) {
     return Object.entries(categories).sort((a, b) => {
-        const order = { 'allowed': 0, 'potentially-allowed': 1, 'not-allowed': 2 };
+        const order = {'allowed': 0, 'potentially-allowed': 1, 'not-allowed': 2};
         return order[a[1].status] - order[b[1].status];
     });
 }
@@ -393,21 +422,6 @@ function createSortedCategoryContent(category, endpoints) {
     return categoryContent;
 }
 
-// Toggle category visibility
-function toggleCategory(event) {
-    if (event.target.type === 'checkbox') return;
-    const content = this.nextElementSibling;
-    const toggle = this.querySelector('.category-toggle');
-    if (content.style.display === 'none') {
-        content.style.display = 'block';
-        toggle.textContent = '−';
-    } else {
-        content.style.display = 'none';
-        toggle.textContent = '+';
-    }
-}
-
-// Toggle category checkbox
 function toggleCategoryCheckbox(checkbox) {
     const categoryContent = checkbox.closest('.category-header').nextElementSibling;
     const childCheckboxes = categoryContent.querySelectorAll('input[type="checkbox"]');
@@ -422,8 +436,6 @@ function toggleCategoryCheckbox(checkbox) {
     updateCategoryCheckbox(category, childCheckboxes.length);
 }
 
-// Update category checkbox state
-// Update category checkbox state
 function updateCategoryCheckbox(category, totalEndpoints) {
     const safeCategory = category.replace(/[^a-zA-Z0-9]/g, '_');
     const categoryCheckbox = document.getElementById(`category-${safeCategory}`);
@@ -434,7 +446,6 @@ function updateCategoryCheckbox(category, totalEndpoints) {
     }
 }
 
-// Select all endpoints
 function selectAll() {
     document.querySelectorAll('#endpointsList input[type="checkbox"]').forEach(checkbox => {
         checkbox.checked = true;
@@ -442,7 +453,6 @@ function selectAll() {
     updateAllCategoryCheckboxes();
 }
 
-// Deselect all endpoints
 function deselectAll() {
     document.querySelectorAll('#endpointsList input[type="checkbox"]').forEach(checkbox => {
         checkbox.checked = false;
@@ -450,7 +460,6 @@ function deselectAll() {
     updateAllCategoryCheckboxes();
 }
 
-// Update all category checkboxes
 function updateAllCategoryCheckboxes() {
     document.querySelectorAll('.category-wrapper').forEach(category => {
         const categoryName = category.querySelector('.category-header').textContent.trim().replace(/^\+\s*/, '');
@@ -469,10 +478,8 @@ function getSelectedTokenAudience() {
     return parts.length > 1 ? parts[1].trim() : null;
 }
 
-
-
 async function enumerateGraph() {
-    console.log("Starting enumeration...");
+    console.log("enumerateGraph called at:", new Date().toISOString());
 
     if (!FLATTENED_ENDPOINTS) {
         console.error("FLATTENED_ENDPOINTS is not initialized");
@@ -495,6 +502,7 @@ async function enumerateGraph() {
     console.log(`Selected token ID: ${tokenId}, Audience: ${tokenAudience}`);
 
     const selectedEndpoints = Array.from(document.querySelectorAll('input[name="endpoints"]:checked')).map(cb => cb.value);
+    console.log("Number of selected endpoints:", selectedEndpoints.length);
     console.log("Selected endpoints:", selectedEndpoints);
 
     if (selectedEndpoints.length === 0) {
@@ -519,6 +527,7 @@ async function enumerateGraph() {
         console.log(`Is valid: ${isValid}`);
         return isValid;
     });
+    console.log("Number of valid endpoints:", validEndpoints.length);
     console.log("Valid endpoints:", validEndpoints);
 
     if (validEndpoints.length === 0) {
@@ -527,86 +536,66 @@ async function enumerateGraph() {
         return;
     }
 
-    const formData = new FormData();
-    formData.append('token_id', tokenId);
-    validEndpoints.forEach(endpoint => formData.append('endpoints', endpoint));
+    const resultsDiv = document.getElementById(RESULTS_DIV_ID);
+    resultsDiv.innerHTML = createResultsHeader();
 
-    try {
-        console.log("Sending request to /enumerate_graph");
-        const response = await fetch('/enumerate_graph', {
-            method: 'POST',
-            body: formData
-        });
+    const results = new Map();
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+    // Process endpoints asynchronously
+    const promises = validEndpoints.map(endpoint => processEndpoint(endpoint, tokenId));
+    const processedResults = await Promise.all(promises);
 
-        const data = await response.json();
-        console.log("Received data from server:", data);
+    processedResults.forEach(({ endpoint, result, status }) => {
+        results.set(endpoint, { result, status });
+    });
 
-        if (Object.keys(data).length === 0) {
-            throw new Error("No data returned from the server");
-        }
+    // Sort results
+    const sortedResults = Array.from(results.entries()).sort((a, b) => {
+        const order = { 'success': 0, 'empty': 1, 'warning': 2, 'error': 3 };
+        return order[a[1].status] - order[b[1].status] || a[0].localeCompare(b[0]);
+    });
 
-        const resultsDiv = document.getElementById(RESULTS_DIV_ID);
-        resultsDiv.innerHTML = createResultsHeader();
+    // Render sorted results
+    sortedResults.forEach(([endpoint, { result, status }], index) => {
+        const sectionDiv = createResultSection(endpoint, result, index, status);
+        resultsDiv.appendChild(sectionDiv);
+    });
 
-        // Sort the results
-        const sortedResults = Object.entries(data).sort((a, b) => {
-            const statusOrder = { success: 0, empty: 1, warning: 2, error: 3 };
-            const statusA = getResultStatus(a[1]);
-            const statusB = getResultStatus(b[1]);
+    console.log("All endpoints processed");
+    console.log("Number of unique results:", results.size);
+}
 
-            if (statusOrder[statusA] !== statusOrder[statusB]) {
-                return statusOrder[statusA] - statusOrder[statusB];
+function processEndpoint(endpoint, tokenId) {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const formData = new FormData();
+            formData.append('token_id', tokenId);
+            formData.append('endpoints', endpoint);
+
+            const response = await fetch('/enumerate_graph', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
 
-            return a[0].localeCompare(b[0]);
-        });
+            const data = await response.json();
+            console.log(`Received data for ${endpoint}:`, data);
 
-        let currentStatus = null;
-        sortedResults.forEach(([endpoint, result], index) => {
-            const status = getResultStatus(result);
-
-            if (status !== currentStatus) {
-                if (currentStatus !== null) {
-                    // Add a separator between different status groups
-                    resultsDiv.appendChild(createSeparator());
-                }
-                currentStatus = status;
+            if (Object.keys(data).length === 0) {
+                throw new Error("No data returned from the server");
             }
 
-            const sectionDiv = createResultSection(endpoint, result, index, status);
-            resultsDiv.appendChild(sectionDiv);
-        });
-
-    } catch (error) {
-        console.error('Error during enumeration:', error);
-        document.getElementById(RESULTS_DIV_ID).innerHTML = `<p class="text-danger">Error: ${error.message}</p>`;
-    }
+            const status = getResultStatus(data[endpoint]);
+            resolve({ endpoint, result: data[endpoint], status });
+        } catch (error) {
+            console.error(`Error processing ${endpoint}:`, error);
+            resolve({ endpoint, result: { error: error.message }, status: 'error' });
+        }
+    });
 }
-
-async function fetchTokenDetails(tokenId) {
-    console.log(`Fetching details for token ID: ${tokenId}`);
-    const response = await fetch(`/get_token_details/${tokenId}`);
-    if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`Error fetching token details: ${response.status} ${errorText}`);
-        throw new Error(`Failed to fetch token details: ${response.status} ${response.statusText}`);
-    }
-    const data = await response.json();
-    console.log(`Received token details:`, data);
-    return data;
-}
-
-
-function createSeparator() {
-    const separator = document.createElement('hr');
-    separator.className = 'my-4';
-    return separator;
-}
-
 
 function createResultsHeader() {
     return `
@@ -662,51 +651,27 @@ function createResultHeaderBar(endpoint, index, status) {
     return headerBar;
 }
 
-// Get status icon based on the status
 function getStatusIcon(status) {
     switch (status) {
-        case 'success':
-            return '▶';
-        case 'empty':
-            return '📭'; // Empty mailbox emoji
-        case 'warning':
-            return '⚠️'; // Warning sign
-        case 'error':
-            return '🛑'; // Stop sign
-        default:
-            return '▶';
+        case 'success': return '▶';
+        case 'empty': return '📭';
+        case 'warning': return '⚠️';
+        case 'error': return '🛑';
+        default: return '▶';
     }
 }
 
-
-
-// Display enumeration results
-function displayEnumerationResults(data) {
-    const resultsDiv = document.getElementById(RESULTS_DIV_ID);
-    resultsDiv.innerHTML = '<h2>Enumeration Results</h2>';
-
-    Object.entries(data).forEach(([endpoint, result], index) => {
-        const sectionDiv = createResultSection(endpoint, result, index);
-        resultsDiv.appendChild(sectionDiv);
-    });
-}
-
-// Create result section
 function getResultStatus(result) {
-    console.log("Result:", result); // Debugging log
     if (result.error) return 'error';
     if (result.warning) return 'warning';
-
     if (result['@odata.context'] && Array.isArray(result.value)) {
         return result.value.length > 0 ? 'success' : 'empty';
     }
-
     return 'empty';
 }
 
-// Create result section
 function createResultSection(endpoint, result, index, status) {
-    console.log(`Creating section for ${endpoint} with status ${status}`); // Debugging log
+    console.log(`Creating section for ${endpoint} with status ${status}`);
     const sectionDiv = document.createElement('div');
     sectionDiv.className = 'result-section mb-3';
 
@@ -716,7 +681,7 @@ function createResultSection(endpoint, result, index, status) {
     const contentContainer = document.createElement('div');
     contentContainer.id = `dataTable${index}Container`;
     contentContainer.className = 'mt-2';
-    contentContainer.style.display = 'none';
+    contentContainer.style.display = 'none';  // Ensure it's initially hidden
 
     switch (status) {
         case 'success':
@@ -741,16 +706,10 @@ function createResultSection(endpoint, result, index, status) {
     return sectionDiv;
 }
 
-
-
-
-
-// Initialize DataTable
 function initializeDataTable(data, index, headerBar) {
-    console.log("Initializing DataTable with data:", data); // Debugging log
+    console.log("Initializing DataTable with data:", data);
     const tableId = `dataTable${index}`;
     const $table = jQuery(`#${tableId}`);
-
 
     if ($table.length === 0) {
         console.error(`Table with id ${tableId} not found`);
@@ -758,7 +717,6 @@ function initializeDataTable(data, index, headerBar) {
     }
 
     try {
-        // Get the actual column names from the first data item
         const columns = Object.keys(data[0]).map(key => ({
             title: key,
             data: key
@@ -773,7 +731,6 @@ function initializeDataTable(data, index, headerBar) {
             autoWidth: false
         });
 
-
         addShowMoreEventListener($table, dataTable);
 
     } catch (error) {
@@ -784,103 +741,15 @@ function initializeDataTable(data, index, headerBar) {
     }
 }
 
-
-
-
 function setErrorState(headerBar, errorMessage) {
     headerBar.classList.add('error');
     const toggleIcon = headerBar.querySelector('.toggle-icon');
     if (toggleIcon) {
-        toggleIcon.innerHTML = '⚠️';  // Warning icon
+        toggleIcon.innerHTML = '⚠️';
     }
-    headerBar.title = errorMessage;  // Add error message as tooltip
+    headerBar.title = errorMessage;
 }
 
-// Prepare data for table
-function prepareDataForTable(data) {
-    console.log("Preparing data for table:", data); // Debugging log
-    let dataSet = [];
-
-    if (Array.isArray(data)) {
-        dataSet = data.map(item => flattenObject(item));
-    } else if (typeof data === 'object' && data !== null) {
-        dataSet = [flattenObject(data)];
-    } else {
-        dataSet = [{ value: data }];
-    }
-
-    const columns = dataSet.length > 0 ? Object.keys(dataSet[0])
-        .filter(key => !key.startsWith('@odata') && !key.startsWith('__'))
-        .map(key => ({
-            title: abbreviateFieldName(key),
-            data: key,
-            render: renderTableCell
-        })) : [];
-
-    return [columns, dataSet];
-}
-
-
-// Create result table container
-function createResultTableContainer(index) {
-    const tableContainer = document.createElement('div');
-    tableContainer.id = `dataTable${index}Container`;
-    tableContainer.className = 'mt-2';
-    tableContainer.style.display = 'none';
-
-    const table = document.createElement('table');
-    table.id = `dataTable${index}`;
-    table.className = 'display';
-    tableContainer.appendChild(table);
-
-    return tableContainer;
-}
-
-// Flatten object
-function flattenObject(obj, prefix = '') {
-    return Object.keys(obj).reduce((acc, k) => {
-        const pre = prefix.length ? prefix + '.' : '';
-        if (typeof obj[k] === 'object' && obj[k] !== null && !Array.isArray(obj[k])) {
-            Object.assign(acc, flattenObject(obj[k], pre + k));
-        } else {
-            acc[pre + k] = obj[k];
-        }
-        return acc;
-    }, {});
-}
-
-// Abbreviate field name
-function abbreviateFieldName(name, maxLength = 15) {
-    if (name.length <= maxLength) return name;
-    const parts = name.split(/(?=[A-Z])/);
-    let result = parts[0];
-    for (let i = 1; i < parts.length && result.length < maxLength - 3; i++) {
-        result += parts[i][0];
-    }
-    return result + '...';
-}
-
-// Render table cell
-function renderTableCell(data, type) {
-    if (type === 'display') {
-        const stringValue = data != null ? String(data) : '';
-        if (stringValue.length > 50) {
-            return stringValue.substring(0, 47) + '... <a href="#" class="show-more">Show more</a>';
-        }
-        return stringValue;
-    }
-    return data;
-}
-
-// Add unique IDs to form fields
-function addUniqueIdsToFormFields($table, index) {
-    $table.find('input, select, textarea').each(function(i, el) {
-        el.id = `${el.id || 'formField'}_${index}_${i}`;
-        el.name = `${el.name || 'formField'}_${index}_${i}`;
-    });
-}
-
-// Add "Show more" event listener
 function addShowMoreEventListener($table, dataTable) {
     $table.on('click', 'a.show-more', function(e) {
         e.preventDefault();
@@ -898,7 +767,6 @@ function addShowMoreEventListener($table, dataTable) {
     });
 }
 
-// Create button
 function createButton(text, onClick, colorClass) {
     const button = document.createElement('button');
     button.className = `btn btn-sm ${colorClass} me-2`;
@@ -910,7 +778,6 @@ function createButton(text, onClick, colorClass) {
     return button;
 }
 
-// Download JSON
 function downloadJSON(endpoint, tableId) {
     const table = jQuery(`#${tableId}`).DataTable();
     const jsonData = { value: table.data().toArray() };
@@ -919,7 +786,6 @@ function downloadJSON(endpoint, tableId) {
     downloadBlob(blob, `${endpoint.replace(/\//g, '_')}_output.json`);
 }
 
-// Download CSV
 function downloadCSV(endpoint, tableId) {
     const table = jQuery(`#${tableId}`).DataTable();
     const headers = table.columns().header().toArray().map(header => header.textContent);
@@ -941,7 +807,6 @@ function downloadCSV(endpoint, tableId) {
     downloadBlob(blob, `${endpoint.replace(/\//g, '_')}.csv`);
 }
 
-// Download blob
 function downloadBlob(blob, filename) {
     const link = document.createElement('a');
     if (link.download !== undefined) {
@@ -955,7 +820,6 @@ function downloadBlob(blob, filename) {
     }
 }
 
-// Copy to clipboard
 function copyToClipboard(tableId) {
     const table = jQuery(`#${tableId}`).DataTable();
     const visibleColumns = table.columns().indexes().filter(function(value, index) {
@@ -988,8 +852,6 @@ function copyToClipboard(tableId) {
     });
 }
 
-// Toggle data table visibility
-// Toggle data table visibility
 function toggleDataTable(tableId) {
     const tableContainer = document.getElementById(`${tableId}Container`);
     if (tableContainer) {
@@ -997,7 +859,6 @@ function toggleDataTable(tableId) {
     }
 }
 
-// Update current time
 function updateCurrentTime() {
     const currentTimeElement = document.getElementById(CURRENT_TIME_ID);
     if (currentTimeElement) {
