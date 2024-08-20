@@ -37,7 +37,7 @@ function setupActionButtons() {
         {
             name: 'Check for Mismatched Service Principals',
             permissions: ['Application.Read.All', 'Application.ReadWrite.All', 'Directory.Read.All', 'Directory.ReadWrite.All'],
-            action: 'check_mismatched_service_principals'
+            action: 'get_mismatched_service_principals'
         },
         {
             name: 'Check Expiring Application Passwords',
@@ -105,26 +105,23 @@ function setupActionButtons() {
     if (buttonContainer) {
         buttonContainer.innerHTML = ''; // Clear existing buttons
         actionButtons.forEach(button => {
-            const col = document.createElement('div');
-            col.className = 'col-12 col-md-6 col-lg-4 mb-2';
-            const btn = document.createElement('div');
-            btn.className = 'category-wrapper';
-            btn.innerHTML = `
+            const wrapper = document.createElement('div');
+            wrapper.className = 'category-wrapper';
+            wrapper.innerHTML = `
                 <div class="category-header">
                     <input type="checkbox" class="category-checkbox" value="${button.action}">
-                    ${button.name}
+                    <span>${button.name}</span>
                 </div>
             `;
-            btn.dataset.permissions = JSON.stringify(button.permissions);
-            btn.onclick = function(e) {
+            wrapper.dataset.permissions = JSON.stringify(button.permissions);
+            wrapper.onclick = function(e) {
                 if (e.target.type !== 'checkbox') {
                     const checkbox = this.querySelector('input[type="checkbox"]');
                     checkbox.checked = !checkbox.checked;
                 }
                 e.preventDefault();
             };
-            col.appendChild(btn);
-            buttonContainer.appendChild(col);
+            buttonContainer.appendChild(wrapper);
         });
     } else {
         console.error('Button container not found');
@@ -204,8 +201,8 @@ function highlightActionButtons(permissions) {
         .filter(p => p.includes('.AccessAsUser.'))
         .map(p => p.split('.')[0]));
 
-    document.querySelectorAll('#actionButtons .category-wrapper').forEach(button => {
-        const requiredPermissions = JSON.parse(button.dataset.permissions);
+    document.querySelectorAll('#actionButtons .category-wrapper').forEach(wrapper => {
+        const requiredPermissions = JSON.parse(wrapper.dataset.permissions);
         let hasPermission = false;
         let potentialAccess = false;
 
@@ -218,7 +215,7 @@ function highlightActionButtons(permissions) {
             }
         }
 
-        const header = button.querySelector('.category-header');
+        const header = wrapper.querySelector('.category-header');
         header.classList.remove('highlighted', 'potentially-allowed');
         if (hasPermission) {
             header.classList.add('highlighted');
@@ -226,10 +223,11 @@ function highlightActionButtons(permissions) {
             header.classList.add('potentially-allowed');
         }
 
-        const checkbox = button.querySelector('input[type="checkbox"]');
+        const checkbox = wrapper.querySelector('input[type="checkbox"]');
         checkbox.disabled = !hasPermission && !potentialAccess;
     });
 }
+
 
 
 
