@@ -475,8 +475,13 @@ function getSelectedTokenAudience() {
 
     // Assuming the format is "id - audience - email"
     const parts = selectedOption.text.split(' - ');
-    return parts.length > 1 ? parts[1].trim() : null;
+    if (parts.length > 1) {
+        // Trim the audience and remove any trailing slashes
+        return parts[1].trim().replace(/\/+$/, '');
+    }
+    return null;
 }
+
 
 async function enumerateGraph() {
     console.log("enumerateGraph called at:", new Date().toISOString());
@@ -498,8 +503,8 @@ async function enumerateGraph() {
 
     const tokenId = selectedOption.value;
     const tokenAudience = getSelectedTokenAudience();
-
     console.log(`Selected token ID: ${tokenId}, Audience: ${tokenAudience}`);
+
 
     const selectedEndpoints = Array.from(document.querySelectorAll('input[name="endpoints"]:checked')).map(cb => cb.value);
     console.log("Number of selected endpoints:", selectedEndpoints.length);
@@ -511,6 +516,9 @@ async function enumerateGraph() {
         return;
     }
 
+    const normalizeAudience = (audience) => audience.replace(/\/+$/, '');
+
+
     // Filter endpoints based on audience
     const validEndpoints = selectedEndpoints.filter(endpoint => {
         const endpointData = FLATTENED_ENDPOINTS[endpoint];
@@ -521,20 +529,25 @@ async function enumerateGraph() {
         console.log(`Checking endpoint: ${endpoint}`);
         console.log(`Endpoint audience:`, endpointData.audience);
         console.log(`Token audience: ${tokenAudience}`);
+
+        const normalizedTokenAudience = normalizeAudience(tokenAudience);
         const isValid = Array.isArray(endpointData.audience)
-            ? endpointData.audience.includes(tokenAudience)
-            : endpointData.audience === tokenAudience;
+            ? endpointData.audience.some(aud => normalizeAudience(aud) === normalizedTokenAudience)
+            : normalizeAudience(endpointData.audience) === normalizedTokenAudience;
+
         console.log(`Is valid: ${isValid}`);
         return isValid;
     });
+
     console.log("Number of valid endpoints:", validEndpoints.length);
     console.log("Valid endpoints:", validEndpoints);
 
     if (validEndpoints.length === 0) {
         console.log("No valid endpoints found");
-        alert("No selected endpoints match the token's audience.");
+        alert("No selected endpoints match the token's audience. Please check your selection and try again.");
         return;
     }
+
 
     const resultsDiv = document.getElementById(RESULTS_DIV_ID);
     resultsDiv.innerHTML = createResultsHeader();
