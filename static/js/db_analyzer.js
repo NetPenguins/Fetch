@@ -106,27 +106,31 @@ function setupActionButtons() {
         buttonContainer.innerHTML = ''; // Clear existing buttons
         actionButtons.forEach(button => {
             const wrapper = document.createElement('div');
-            wrapper.className = 'category-wrapper';
+            wrapper.className = 'col'; // Add Bootstrap column class
             wrapper.innerHTML = `
-                <div class="category-header">
-                    <input type="checkbox" class="category-checkbox" value="${button.action}">
-                    <span>${button.name}</span>
+                <div class="category-wrapper">
+                    <label class="category-header">
+                        <input type="checkbox" class="category-checkbox" value="${button.action}">
+                        <span>${button.name}</span>
+                    </label>
                 </div>
             `;
-            wrapper.dataset.permissions = JSON.stringify(button.permissions);
-            wrapper.onclick = function(e) {
-                if (e.target.type !== 'checkbox') {
-                    const checkbox = this.querySelector('input[type="checkbox"]');
-                    checkbox.checked = !checkbox.checked;
-                }
-                e.preventDefault();
-            };
+            // Ensure permissions are properly stringified
+            wrapper.dataset.permissions = JSON.stringify(button.permissions || []);
+            wrapper.querySelector('input[type="checkbox"]').addEventListener('change', function() {
+                wrapper.querySelector('.category-wrapper').classList.toggle('checked', this.checked);
+            });
             buttonContainer.appendChild(wrapper);
         });
     } else {
         console.error('Button container not found');
     }
 }
+
+
+
+
+
 
 
 
@@ -155,12 +159,14 @@ function executeSelectedActions() {
         return;
     }
 
-    // Clear previous results
-    document.getElementById('results').innerHTML = '';
+    // Clear previous results and add the header
+    const resultsDiv = document.getElementById('results');
+    resultsDiv.innerHTML = createResultsHeader();
 
     // Execute each selected action
     selectedActions.forEach(action => performGraphAction(action));
 }
+
 
 function checkAndHighlightPermissions(tokenId) {
     if (!tokenId) {
@@ -202,7 +208,7 @@ function highlightActionButtons(permissions) {
         .map(p => p.split('.')[0]));
 
     document.querySelectorAll('#actionButtons .category-wrapper').forEach(wrapper => {
-        const requiredPermissions = JSON.parse(wrapper.dataset.permissions);
+        const requiredPermissions = JSON.parse(wrapper.closest('.col').dataset.permissions || '[]');
         let hasPermission = false;
         let potentialAccess = false;
 
@@ -227,6 +233,7 @@ function highlightActionButtons(permissions) {
         checkbox.disabled = !hasPermission && !potentialAccess;
     });
 }
+
 
 
 
@@ -273,17 +280,22 @@ function createResultSection(action, data, objectId, displayName) {
 
     let icon, statusClass, status, content;
     if (data.error) {
-        icon = 'bi-x-octagon';
+        icon = 'bi-x-octagon-fill';
         statusClass = 'text-danger';
         status = 'error';
         content = `Error: ${data.error} (Status: ${data.status})`;
+    } else if (data.value && Array.isArray(data.value) && data.value.length === 0) {
+        icon = 'bi-circle';
+        statusClass = 'text-secondary';
+        status = 'empty';
+        content = 'No data available';
     } else if (data === undefined || (Array.isArray(data) && data.length === 0)) {
-        icon = 'bi-envelope';
-        statusClass = 'text-warning';
+        icon = 'bi-circle';
+        statusClass = 'text-secondary';
         status = 'empty';
         content = 'No data available';
     } else {
-        icon = 'bi-chevron-down';
+        icon = 'bi-check-circle-fill';
         statusClass = 'text-success';
         status = 'success';
         content = JSON.stringify(data, null, 2);
@@ -292,29 +304,60 @@ function createResultSection(action, data, objectId, displayName) {
     resultSection.innerHTML = `
         <div class="card" data-status="${status}">
             <div class="card-header" id="heading-${objectId}-${action}">
-                <h5 class="mb-0">
-                    <button class="btn btn-link collapsed ${statusClass}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${objectId}-${action}">
-                        ${displayName} <i class="bi ${icon}"></i>
+                <h5 class="mb-0 d-flex align-items-center">
+                    <i class="bi ${icon} ${statusClass} me-2"></i>
+                    <button class="btn btn-link ${statusClass}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${objectId}-${action}" aria-expanded="true" aria-controls="collapse-${objectId}-${action}">
+                        ${displayName}
                     </button>
                 </h5>
             </div>
             <div id="collapse-${objectId}-${action}" class="collapse" aria-labelledby="heading-${objectId}-${action}">
                 <div class="card-body">
                     <pre class="results-container"><code>${content}</code></pre>
-                    <button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button>
+                    <div class="action-buttons">
+                        <button class="btn btn-sm btn-outline-primary json-btn">JSON</button>
+                        <button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button>
+                    </div>
                 </div>
             </div>
         </div>
     `;
 
     resultSection.querySelector('.copy-btn').addEventListener('click', () => copyToClipboard(content));
-    resultSection.querySelector('.btn-link').addEventListener('click', function() {
-        this.querySelector('i').classList.toggle('bi-chevron-down');
-        this.querySelector('i').classList.toggle('bi-chevron-up');
-    });
+    resultSection.querySelector('.json-btn').addEventListener('click', () => downloadJSON(data, `${action}_data.json`));
 
     return resultSection;
 }
+
+
+function downloadJSON(data, filename) {
+    const dataStr = JSON.stringify(data, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', filename);
+    linkElement.click();
+}
+
+
+
+
+function createResultsHeader() {
+    return `
+        <div class="enumeration-results-header">
+            <h2>Enumeration Results</h2>
+            <div class="result-legend">
+                <span><i class="bi bi-check-circle-fill text-success"></i> Data available</span>
+                <span><i class="bi bi-circle text-secondary"></i> No data</span>
+                <span><i class="bi bi-exclamation-triangle-fill text-warning"></i> Warning</span>
+                <span><i class="bi bi-x-octagon-fill text-danger"></i> Error</span>
+            </div>
+        </div>
+    `;
+}
+
+
+
 
 function sortResults() {
     const sortOrder = ['success', 'empty', 'error'];
@@ -333,21 +376,19 @@ function sortResults() {
 
 
 function copyToClipboard(text) {
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-    document.body.appendChild(textarea);
-    textarea.select();
-    document.execCommand('copy');
-    document.body.removeChild(textarea);
-
-    // Show a temporary "Copied!" message
-    const copyBtn = event.target;
-    const originalText = copyBtn.textContent;
-    copyBtn.textContent = 'Copied!';
-    setTimeout(() => {
-        copyBtn.textContent = originalText;
-    }, 2000);
+    navigator.clipboard.writeText(text).then(() => {
+        // Show a temporary "Copied!" message
+        const copyBtn = event.target;
+        const originalText = copyBtn.textContent;
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => {
+            copyBtn.textContent = originalText;
+        }, 2000);
+    }).catch(err => {
+        console.error('Failed to copy text: ', err);
+    });
 }
+
 
 
 function updateCurrentTime() {
