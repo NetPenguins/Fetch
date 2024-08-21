@@ -30,7 +30,6 @@
                 <li class="nav-item">
                     <a class="nav-link {% if request.endpoint == 'object_analyzer' %}active{% endif %}" href="{{ url_for('object_analyzer') }}">Object Analyzer</a>
                 </li>
-
                 <li class="nav-item">
                     <a class="nav-link {% if request.endpoint == 'guides' %}active{% endif %}" href="{{ url_for('guides') }}">Guides</a>
                 </li>
@@ -42,6 +41,7 @@
                         <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#insertTokenModal">Insert Token</a></li>
                         <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#deviceCodeAuthModal">Device Code Auth</a></li>
                         <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#passwordAuthModal">Request Token with Password</a></li>
+                        <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#refreshTokenModal">Request Token with Refresh Token</a></li>
                         <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#clientSecretAuthModal">Request Token with Client Secret</a></li>
                         <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#certificateAuthModal">Request Token with Certificate</a></li>
                         <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#implicitGrantAuthModal">Implicit Grant Auth</a></li>
@@ -271,6 +271,41 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="refreshTokenModal" tabindex="-1" aria-labelledby="refreshTokenModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="refreshTokenModalLabel">Generate Tokens from Refresh Token</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="refreshTokenForm">
+                    <div class="mb-3">
+                        <label for="refreshToken" class="form-label">Refresh Token</label>
+                        <input type="text" class="form-control" id="refreshToken" name="refresh_token" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="clientId" class="form-label">Client ID</label>
+                        <input type="text" class="form-control" id="clientId" name="client_id" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="tenantId" class="form-label">Tenant ID (optional)</label>
+                        <input type="text" class="form-control" id="tenantId" name="tenant_id">
+                    </div>
+                    <div class="mb-3">
+                        <label for="scope" class="form-label">Scope (optional)</label>
+                        <input type="text" class="form-control" id="scope" name="scope" placeholder="https://graph.microsoft.com/.default">
+                        <small class="form-text text-muted">Leave blank for default scope. Separate multiple scopes with spaces.</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Generate Tokens</button>
+                </form>
+                <div id="refreshTokenResult" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
 
 <!-- Implicit Grant Auth Modal -->
 <div class="modal fade" id="implicitGrantAuthModal" tabindex="-1" aria-labelledby="implicitGrantAuthModalLabel" aria-hidden="true">

@@ -688,6 +688,55 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 }
 
+function handleRefreshToken(e) {
+    e.preventDefault();
+    const form = e.target;
+    const formData = new FormData(form);
+
+    fetch('/generate_from_refresh', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        const resultDiv = document.getElementById('refreshTokenResult');
+        if (data.success) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <h5>Tokens generated successfully!</h5>
+                    <p>Access Token: ${data.access_token.substring(0, 10)}...</p>
+                    ${data.refresh_token ? `<p>Refresh Token: ${data.refresh_token.substring(0, 10)}...</p>` : ''}
+                </div>
+            `;
+            // Optionally, store the new tokens
+            if (data.access_token) {
+                storeToken(data.access_token, 'access_token', formData.get('tenant_id'), null, 'Refresh Token Exchange');
+            }
+            if (data.refresh_token) {
+                storeToken(data.refresh_token, 'refresh_token', formData.get('tenant_id'), null, 'Refresh Token Exchange');
+            }
+            refreshTokenTable();
+        } else {
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <h5>Error</h5>
+                    <p>${data.error}</p>
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        document.getElementById('refreshTokenResult').innerHTML = `
+            <div class="alert alert-danger">
+                <h5>Error</h5>
+                <p>An unexpected error occurred. Please try again.</p>
+            </div>
+        `;
+    });
+}
+
+
 function copyClientToken() {
     const tokenText = document.querySelector('#tokenResult pre')?.textContent;
     if (tokenText) {
@@ -818,3 +867,4 @@ function handleFetchError(error, customMessage) {
 
 // Call this function after the DOM is loaded
 document.addEventListener('DOMContentLoaded', initializeTokenTableEvents);
+document.getElementById('refreshTokenForm').addEventListener('submit', handleRefreshToken);

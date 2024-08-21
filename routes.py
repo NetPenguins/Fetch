@@ -720,18 +720,52 @@ def get_tokens_table():
 
 @app.route('/generate_from_refresh', methods=['POST'])
 def generate_from_refresh():
-    refresh_token_id = request.form['refresh_token_id']
-    client_id = request.form['client_id']  # Add this line
-    conn = get_db_connection()
-    refresh_token = conn.execute('SELECT token, tenant_id FROM tokens WHERE id = ? AND token_type = "refresh_token"',
-                                 (refresh_token_id,)).fetchone()
-    conn.close()
+    refresh_token = request.form['refresh_token']
+    client_id = request.form['client_id']
+    tenant_id = request.form.get('tenant_id', 'common')  # Use 'common' as default if not provided
+    scope = request.form.get('scope', 'https://graph.microsoft.com/.default')  # Allow custom scope
 
-    if not refresh_token:
-        return jsonify({"success": False, "error": "Refresh token not found"}), 404
+    # Token endpoint URL
+    token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
 
-    result = generate_new_tokens(client_id, refresh_token['token'], refresh_token['tenant_id'])
-    return jsonify(result)
+    # Prepare the token request
+    token_data = {
+        'grant_type': 'refresh_token',
+        'client_id': client_id,
+        'refresh_token': refresh_token,
+        'scope': scope
+    }
+
+    try:
+        response = requests.post(token_url, data=token_data)
+        response.raise_for_status()
+        token_response = response.json()
+
+        # Extract tokens
+        new_access_token = token_response.get('access_token')
+        new_refresh_token = token_response.get('refresh_token')
+
+        # Store the new tokens in the database
+        conn = get_db_connection()
+        if new_access_token:
+            insert_token(new_access_token, 'access_token', tenant_id, None, 'Refresh Token Exchange')
+        if new_refresh_token:
+            insert_token(new_refresh_token, 'refresh_token', tenant_id, None, 'Refresh Token Exchange')
+        conn.close()
+
+        return jsonify({
+            "success": True,
+            "message": "Tokens generated successfully",
+            "access_token": new_access_token,
+            "refresh_token": new_refresh_token
+        })
+    except requests.exceptions.RequestException as e:
+        return jsonify({
+            "success": False,
+            "error": f"Failed to generate tokens: {str(e)}"
+        }), 400
+
+
 
 
 @app.route('/poll_for_token', methods=['POST'])
