@@ -612,13 +612,13 @@ function processEndpoint(endpoint, tokenId) {
 
 function createResultsHeader() {
     return `
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
             <h2>Enumeration Results</h2>
-            <div class="legend">
-                <span class="me-3"><span class="legend-icon">▶</span> Data available</span>
-                <span class="me-3"><span class="legend-icon">📭</span> No data</span>
-                <span class="me-3"><span class="legend-icon">⚠️</span> Warning</span>
-                <span><span class="legend-icon">🛑</span> Error</span>
+            <div class="legend" style="font-size: 0.9em;">
+                <span style="margin-right: 15px;"><span style="color: green;">&#9989;</span> Data available</span>
+                <span style="margin-right: 15px;"><span style="color: gray;">&#9711;</span> No data</span>
+                <span style="margin-right: 15px;"><span style="color: orange;">&#9888;</span> Warning</span>
+                <span><span style="color: red;">&#9940;</span> Error</span>
             </div>
         </div>
     `;
@@ -664,13 +664,14 @@ function createResultHeaderBar(endpoint, index, status) {
     return headerBar;
 }
 
+
 function getStatusIcon(status) {
     switch (status) {
-        case 'success': return '▶';
-        case 'empty': return '📭';
-        case 'warning': return '⚠️';
-        case 'error': return '🛑';
-        default: return '▶';
+        case 'success': return '<span style="color: green;">&#9989;</span>';
+        case 'empty': return '<span style="color: gray;">&#9711;</span>';
+        case 'warning': return '<span style="color: orange;">&#9888;</span>';
+        case 'error': return '<span style="color: red;">&#9940;</span>';
+        default: return '<span style="color: green;">&#9989;</span>';
     }
 }
 
