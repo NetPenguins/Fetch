@@ -1,0 +1,236 @@
+/* db_analyzer.css */
+
+/* Action buttons styles */
+#actionButtons {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 10px;
+}
+
+.category-wrapper {
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.category-header {
+    cursor: pointer;
+    user-select: none;
+    font-weight: bold;
+    font-size: 14px;
+    padding: 8px 12px;
+    background-color: #e9ecef;
+    border-bottom: 1px solid #dee2e6;
+    transition: background-color 0.3s;
+    display: flex;
+    align-items: center;
+    min-height: 40px;
+}
+
+.category-header:hover {
+    background-color: #dee2e6;
+}
+
+.category-header.highlighted {
+    background-color: #c3e6cb;
+}
+
+.category-header.potentially-allowed {
+    background-color: #ffeeba;
+}
+
+.category-header.not-accessible {
+    background-color: #e9ecef;
+}
+
+.category-checkbox {
+    margin-right: 10px;
+    flex-shrink: 0;
+}
+
+.category-header span {
+    flex-grow: 1;
+    white-space: normal;
+    word-wrap: break-word;
+}
+
+.category-content {
+    padding: 10px;
+}
+
+/* Results styles */
+#results .result-section {
+    margin-bottom: 10px;
+}
+
+#results .result-header {
+    padding: 0.5rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+}
+
+#results .result-header h5 {
+    margin-bottom: 0;
+    flex-grow: 1;
+}
+
+#results .btn-link {
+    text-decoration: none;
+    color: inherit;
+}
+
+#results .result-content {
+    padding: 1rem;
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    border-top: none;
+    border-bottom-left-radius: 4px;
+    border-bottom-right-radius: 4px;
+}
+
+.results-container {
+    max-height: 300px;
+    overflow-y: auto;
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+/* Action buttons in result header */
+.action-buttons {
+    display: flex;
+    gap: 8px;
+    margin-left: 10px;
+}
+
+.action-buttons .btn {
+    display: inline-flex;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+
+.action-buttons .btn i {
+    font-size: 1rem;
+}
+
+/* Ensure consistent button sizing */
+.copy-btn, .download-btn {
+    min-width: 90px;
+}
+
+/* Improve button hover effects */
+.btn-outline-secondary:hover {
+    background-color: #6c757d;
+    color: white;
+}
+
+/* Tooltip styles */
+.btn[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #333;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 1000;
+}
+
+/* Additional styles for better readability */
+pre code {
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.result-header h5 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+/* Improve visibility of success and error states */
+.text-success {
+    color: #28a745 !important;
+}
+
+.text-danger {
+    color: #dc3545 !important;
+}
+
+.text-warning {
+    color: #ffc107 !important;
+}
+
+/* Media queries for responsive grid */
+@media (max-width: 1200px) {
+    #actionButtons {
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    }
+}
+
+@media (max-width: 992px) {
+    #actionButtons {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    #actionButtons {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Responsive adjustments for action buttons */
+@media (max-width: 576px) {
+    .result-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .action-buttons {
+        margin-left: 0;
+        margin-top: 10px;
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .copy-btn, .download-btn {
+        flex: 1;
+    }
+}
+
+/* New styles for user results category */
+#userResultsCategory {
+    margin-bottom: 20px;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+#userResultsCategory .category-header {
+    background-color: #007bff;
+    color: white;
+    padding: 10px 15px;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+#userResultsCategory .category-content {
+    padding: 15px;
+    background-color: #f8f9fa;
+}
