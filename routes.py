@@ -725,7 +725,7 @@ def generate_from_refresh():
     tenant_id = request.form.get('tenant_id', 'common')  # Use 'common' as default if not provided
     scope = request.form.get('scope', 'https://graph.microsoft.com/.default')  # Allow custom scope
 
-    # Token endpoint URL
+    # Token endpoint URL for standard Azure AD
     token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
 
     # Prepare the token request
@@ -760,12 +760,14 @@ def generate_from_refresh():
             "refresh_token": new_refresh_token
         })
     except requests.exceptions.RequestException as e:
+        app.logger.error(f"Error in generate_from_refresh: {str(e)}")
+        if hasattr(e, 'response') and e.response is not None:
+            app.logger.error(f"Response content: {e.response.text}")
         return jsonify({
             "success": False,
-            "error": f"Failed to generate tokens: {str(e)}"
+            "error": f"Failed to generate tokens: {str(e)}",
+            "details": e.response.text if hasattr(e, 'response') and e.response is not None else "No additional details"
         }), 400
-
-
 
 
 @app.route('/poll_for_token', methods=['POST'])
