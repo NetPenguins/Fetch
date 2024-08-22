@@ -1,0 +1,20 @@
+/* index.css */
+
+.table-responsive {
+    margin-top: 20px;
+}
+
+.badge {
+    font-size: 0.8rem;
+}
+
+#tokenDetailsModal .modal-body pre {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+/* Token action buttons */
+.token-action-btn {
+    margin-right: 5px;
+    margin-bottom: 5px;
+}

@@ -3,54 +3,55 @@
 {% block title %}Graph Resource Enumerator{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/graph.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/graph.css') }}">
 {% endblock %}
 
 {% block content %}
 
-<div class="mb-4">
-    <label for="tokenSelect" class="form-label">Select Access Token:</label>
-    <select id="tokenSelect" class="form-select">
-        <option value="">Choose a token</option>
-        {% for token in access_tokens %}
-            <option value="{{ token.id }}">{{ token.id }} - {{ token.audience }} - {{ token.email }}</option>
-        {% endfor %}
-    </select>
-</div>
-
-<div id="tokenScp" class="mb-4 p-3" style="display: none;">
-    <div id="tokenExpirationWarning"></div>
-    <h5>Token SCP:</h5>
-    <pre id="tokenScpContent" class="mb-0"></pre>
-</div>
-
-
-<div class="mb-4">
-    <h4 class="mb-3">Select Endpoints to Enumerate:</h4>
-    <div class="mb-3">
-        <button id="selectAllBtn" class="btn btn-secondary me-2">Select All</button>
-        <button id="deselectAllBtn" class="btn btn-secondary me-2">Deselect All</button>
-        <button id="enumerateBtn" class="btn btn-primary">Enumerate</button>
+    <div class="mb-4">
+        <label for="tokenSelect" class="form-label">Select Access Token:</label>
+        <select id="tokenSelect" class="form-select">
+            <option value="">Choose a token</option>
+            {% for token in access_tokens %}
+                <option value="{{ token.id }}">{{ token.id }} - {{ token.audience }} - {{ token.email }}</option>
+            {% endfor %}
+        </select>
     </div>
-    <div id="endpointsList">
-        <!-- Endpoints will be dynamically added here by JavaScript -->
-    </div>
-</div>
 
-<div id="results" class="mt-4"></div>
+    <div id="tokenScp" class="mb-4 p-3" style="display: none;">
+        <div id="tokenExpirationWarning"></div>
+        <h5>Token SCP:</h5>
+        <pre id="tokenScpContent" class="mb-0"></pre>
+    </div>
+
+
+    <div class="mb-4">
+        <h4 class="mb-3">Select Endpoints to Enumerate:</h4>
+        <div class="mb-3">
+            <button id="selectAllBtn" class="btn btn-secondary me-2">Select All</button>
+            <button id="deselectAllBtn" class="btn btn-secondary me-2">Deselect All</button>
+            <button id="enumerateBtn" class="btn btn-primary">Enumerate</button>
+        </div>
+        <div id="endpointsList">
+            <!-- Endpoints will be dynamically added here by JavaScript -->
+        </div>
+    </div>
+
+    <div id="results" class="mt-4"></div>
 {% endblock %}
 
 {% block extra_js %}
-<script id="graph-endpoints-data" type="application/json">
+    <script id="graph-endpoints-data" type="application/json">
     {{ graph_endpoints|tojson|safe }}
-</script>
-<script>
-    // Define GRAPH_ENDPOINTS for use in graph.js
-    window.GRAPH_ENDPOINTS = {{ graph_endpoints|tojson|safe }};
-</script>
 
-<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.css">
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.js"></script>
-<script src="{{ url_for('static', filename='js/graph.js') }}"></script>
+    </script>
+    <script>
+        // Define GRAPH_ENDPOINTS for use in graph.js
+        window.GRAPH_ENDPOINTS = {{ graph_endpoints|tojson|safe }};
+    </script>
+
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.js"></script>
+    <script src="{{ url_for('static', filename='js/graph.js') }}"></script>
 {% endblock %}

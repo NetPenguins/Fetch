@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+
     document.getElementById('selectAllActions').addEventListener('click', selectAllActions);
     document.getElementById('deselectAllActions').addEventListener('click', deselectAllActions);
     document.getElementById('executeSelected').addEventListener('click', executeSelectedActions);
@@ -100,53 +101,52 @@ function setupActionButtons() {
             action: 'get_app_role_assignments'
         },
     ];
-
     const buttonContainer = document.getElementById('actionButtons');
     if (buttonContainer) {
         buttonContainer.innerHTML = ''; // Clear existing buttons
         actionButtons.forEach(button => {
-            const wrapper = document.createElement('div');
-            wrapper.className = 'col'; // Add Bootstrap column class
-            wrapper.innerHTML = `
-                <div class="category-wrapper">
-                    <label class="category-header">
-                        <input type="checkbox" class="category-checkbox" value="${button.action}">
-                        <span>${button.name}</span>
-                    </label>
-                </div>
-            `;
+            const buttonElement = document.createElement('button');
+            buttonElement.className = 'action-button';
+            buttonElement.textContent = button.name;
+            buttonElement.dataset.action = button.action;
+
             // Ensure permissions are properly stringified
-            wrapper.dataset.permissions = JSON.stringify(button.permissions || []);
-            wrapper.querySelector('input[type="checkbox"]').addEventListener('change', function() {
-                wrapper.querySelector('.category-wrapper').classList.toggle('checked', this.checked);
+            buttonElement.dataset.permissions = JSON.stringify(button.permissions || []);
+
+            buttonElement.addEventListener('click', function() {
+                this.classList.toggle('active');
             });
-            buttonContainer.appendChild(wrapper);
+
+            buttonContainer.appendChild(buttonElement);
         });
     } else {
         console.error('Button container not found');
     }
+
+    // Add event listeners for global action buttons
+    document.getElementById('selectAllActions')?.addEventListener('click', selectAllActions);
+    document.getElementById('deselectAllActions')?.addEventListener('click', deselectAllActions);
+    document.getElementById('executeSelected')?.addEventListener('click', executeSelectedActions);
 }
 
-
-
-
-
-
-
-
-
-
 function selectAllActions() {
-    document.querySelectorAll('#actionButtons input[type="checkbox"]').forEach(cb => cb.checked = true);
+    document.querySelectorAll('.action-button').forEach(button => {
+        button.classList.add('active');
+    });
 }
 
 function deselectAllActions() {
-    document.querySelectorAll('#actionButtons input[type="checkbox"]').forEach(cb => cb.checked = false);
+    document.querySelectorAll('.action-button').forEach(button => {
+        button.classList.remove('active');
+    });
 }
 
 function executeSelectedActions() {
-    const selectedActions = Array.from(document.querySelectorAll('#actionButtons input[type="checkbox"]:checked'))
-        .map(cb => cb.value);
+    const selectedActions = Array.from(document.querySelectorAll('.action-button.active'))
+        .map(button => button.dataset.action);
+    console.log('Executing actions:', selectedActions);
+
+
 
     if (selectedActions.length === 0) {
         alert("Please select at least one action to execute.");
@@ -207,8 +207,8 @@ function highlightActionButtons(permissions) {
         .filter(p => p.includes('.AccessAsUser.'))
         .map(p => p.split('.')[0]));
 
-    document.querySelectorAll('#actionButtons .category-wrapper').forEach(wrapper => {
-        const requiredPermissions = JSON.parse(wrapper.closest('.col').dataset.permissions || '[]');
+    document.querySelectorAll('.action-button').forEach(button => {
+        const requiredPermissions = JSON.parse(button.dataset.permissions || '[]');
         let hasPermission = false;
         let potentialAccess = false;
 
@@ -221,16 +221,12 @@ function highlightActionButtons(permissions) {
             }
         }
 
-        const header = wrapper.querySelector('.category-header');
-        header.classList.remove('highlighted', 'potentially-allowed');
+        button.classList.remove('highlighted', 'potentially-allowed');
         if (hasPermission) {
-            header.classList.add('highlighted');
+            button.classList.add('highlighted');
         } else if (potentialAccess) {
-            header.classList.add('potentially-allowed');
+            button.classList.add('potentially-allowed');
         }
-
-        const checkbox = wrapper.querySelector('input[type="checkbox"]');
-        checkbox.disabled = !hasPermission && !potentialAccess;
     });
 }
 
@@ -276,7 +272,7 @@ function performGraphAction(action) {
 function createResultSection(action, data, objectId, displayName) {
     const resultSection = document.createElement('div');
     resultSection.id = `result-${objectId}-${action}`;
-    resultSection.className = 'mb-3';
+    resultSection.className = 'result-item';
 
     let icon, statusClass, status, content;
     if (data.error) {
@@ -302,22 +298,22 @@ function createResultSection(action, data, objectId, displayName) {
     }
 
     resultSection.innerHTML = `
-        <div class="card" data-status="${status}">
-            <div class="card-header" id="heading-${objectId}-${action}">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center" id="heading-${objectId}-${action}">
                 <h5 class="mb-0 d-flex align-items-center">
                     <i class="bi ${icon} ${statusClass} me-2"></i>
                     <button class="btn btn-link ${statusClass}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${objectId}-${action}" aria-expanded="true" aria-controls="collapse-${objectId}-${action}">
                         ${displayName}
                     </button>
                 </h5>
+                <div class="action-buttons">
+                    <button class="btn btn-sm btn-outline-primary json-btn">JSON</button>
+                    <button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button>
+                </div>
             </div>
             <div id="collapse-${objectId}-${action}" class="collapse" aria-labelledby="heading-${objectId}-${action}">
                 <div class="card-body">
-                    <pre class="results-container"><code>${content}</code></pre>
-                    <div class="action-buttons">
-                        <button class="btn btn-sm btn-outline-primary json-btn">JSON</button>
-                        <button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button>
-                    </div>
+                    <pre><code>${content}</code></pre>
                 </div>
             </div>
         </div>
@@ -347,10 +343,10 @@ function createResultsHeader() {
         <div class="enumeration-results-header">
             <h2>Enumeration Results</h2>
             <div class="result-legend">
-                <span><i class="bi bi-check-circle-fill text-success"></i> Data available</span>
-                <span><i class="bi bi-circle text-secondary"></i> No data</span>
-                <span><i class="bi bi-exclamation-triangle-fill text-warning"></i> Warning</span>
-                <span><i class="bi bi-x-octagon-fill text-danger"></i> Error</span>
+                <span class="legend-icon">✅ Data available</span>
+                <span class="legend-icon">⚪ No data</span>
+                <span class="legend-icon">⚠️ Warning</span>
+                <span class="legend-icon">❌ Error</span>
             </div>
         </div>
     `;
@@ -359,19 +355,22 @@ function createResultsHeader() {
 
 
 
+
+
 function sortResults() {
     const sortOrder = ['success', 'empty', 'error'];
-    const resultsDivs = Array.from(document.getElementById('results').children);
+    const resultsDivs = Array.from(document.getElementById('results').children).filter(child => child.classList.contains('result-item'));
 
     resultsDivs.sort((a, b) => {
-        const statusA = a.querySelector('.card')?.dataset.status || '';
-        const statusB = b.querySelector('.card')?.dataset.status || '';
+        const statusA = a.dataset.status || '';
+        const statusB = b.dataset.status || '';
         return sortOrder.indexOf(statusA) - sortOrder.indexOf(statusB);
     });
 
     const resultsContainer = document.getElementById('results');
     resultsDivs.forEach(element => resultsContainer.appendChild(element));
 }
+
 
 
 
