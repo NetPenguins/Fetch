@@ -1,5 +1,38 @@
 {% extends "base.html" %}
 {% block title %}Fetch{% endblock %}
+
+{% block extra_css %}
+<style>
+    .btn-icon {
+        background: none;
+        border: none;
+        color: inherit;
+        padding: 0.25rem 0.5rem;
+        transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out;
+    }
+    .btn-icon:hover {
+        background-color: rgba(0, 0, 0, 0.1);  /* Slightly darker gray background on hover for all buttons */
+    }
+    .btn-icon.copy-token-btn:hover {
+        color: #007bff;  /* Primary color for copy button */
+        background-color: rgba(0, 123, 255, 0.2);  /* Darker blue background */
+    }
+    .btn-icon.show-token-details-btn:hover {
+        color: #17a2b8;  /* Info color for details button */
+        background-color: rgba(23, 162, 184, 0.2);  /* Darker info color background */
+    }
+    .btn-icon.generate-access-token-btn:hover {
+        color: #28a745;  /* Success color for generate button */
+        background-color: rgba(40, 167, 69, 0.2);  /* Darker green background */
+    }
+    .btn-icon.delete-token-btn:hover {
+        color: #dc3545;  /* Danger color for delete button */
+        background-color: rgba(220, 53, 69, 0.2);  /* Darker red background */
+    }
+</style>
+{% endblock %}
+
+
 {% block content %}
 <div class="container mt-4">
     <div class="table-responsive">
@@ -39,12 +72,12 @@
                         {% endif %}
                     </td>
                     <td>
-                    <button class="btn btn-sm btn-primary copy-token-btn" data-token-id="{{ token.id }}" title="Copy">📋</button>
-                    <button class="btn btn-sm btn-info show-token-details-btn" data-token-id="{{ token.id }}" title="Details">ℹ️</button>
+                    <button class="btn btn-sm btn-icon copy-token-btn" data-token-id="{{ token.id }}" title="Copy">📋</button>
+                    <button class="btn btn-sm btn-icon show-token-details-btn" data-token-id="{{ token.id }}" title="Details">ℹ️</button>
                     {% if token.token_type == 'refresh_token' %}
-                    <button class="btn btn-sm btn-success generate-access-token-btn" data-token-id="{{ token.id }}" title="Generate Access Token">🔄</button>
+                    <button class="btn btn-sm btn-icon generate-access-token-btn" data-token-id="{{ token.id }}" title="Generate Access Token">🔄</button>
                     {% endif %}
-                    <button class="btn btn-sm btn-danger delete-token-btn" data-token-id="{{ token.id }}" title="Delete">🗑️</button>
+                    <button class="btn btn-sm btn-icon delete-token-btn" data-token-id="{{ token.id }}" title="Delete">🗑️</button>
                 </td>
             </tr>
             {% endfor %}
