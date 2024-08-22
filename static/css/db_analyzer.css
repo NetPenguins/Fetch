@@ -89,10 +89,10 @@ body {
     background-color: var(--bg-color);
     color: var(--text-color);
     cursor: pointer;
-    transition: outline 0.15s ease;
     outline: 2px solid transparent;
     outline-offset: 2px;
     margin-bottom: 10px;
+    /* Remove transition */
 }
 
 .action-button:hover {
@@ -102,6 +102,8 @@ body {
 .action-button:focus,
 .action-button.active {
     outline-color: var(--button-outline-color);
+    /* Add immediate visual feedback */
+    background-color: rgba(0, 0, 0, 0.1);
 }
 
 .action-button.highlighted {
@@ -112,7 +114,7 @@ body {
     background-color: rgba(255, 193, 7, 0.3);
 }
 
-/* Remove transition from these pseudo-elements if they exist */
+/* Remove any transitions from pseudo-elements if they exist */
 .action-button:before,
 .action-button:after {
     transition: none;
@@ -194,8 +196,6 @@ body {
 .status-warning { color: #ffc107; }
 .status-error { color: #dc3545; }
 
-
-
 /* Enumeration results styles */
 .enumeration-results-header {
     display: flex;
@@ -223,6 +223,13 @@ body {
     font-size: 1.2em;
 }
 
+
+
+.action-button.outlined {
+    outline: 2px solid var(--button-outline-color);
+}
+
+
 /* Utility classes */
 .mb-3 {
     margin-bottom: 1rem;
@@ -240,4 +247,3 @@ body {
         justify-content: flex-end;
     }
 }
-
