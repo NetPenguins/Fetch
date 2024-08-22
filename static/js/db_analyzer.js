@@ -113,7 +113,8 @@ function setupActionButtons() {
             // Ensure permissions are properly stringified
             buttonElement.dataset.permissions = JSON.stringify(button.permissions || []);
 
-            buttonElement.addEventListener('click', function() {
+            buttonElement.addEventListener('click', function(event) {
+                event.preventDefault(); // Prevent default button behavior
                 this.classList.toggle('active');
             });
 
@@ -122,6 +123,7 @@ function setupActionButtons() {
     } else {
         console.error('Button container not found');
     }
+
 
     // Add event listeners for global action buttons
     document.getElementById('selectAllActions')?.addEventListener('click', selectAllActions);
@@ -141,12 +143,11 @@ function deselectAllActions() {
     });
 }
 
+let runningActions = new Set();
+
 function executeSelectedActions() {
     const selectedActions = Array.from(document.querySelectorAll('.action-button.active'))
         .map(button => button.dataset.action);
-    console.log('Executing actions:', selectedActions);
-
-
 
     if (selectedActions.length === 0) {
         alert("Please select at least one action to execute.");
@@ -163,9 +164,19 @@ function executeSelectedActions() {
     const resultsDiv = document.getElementById('results');
     resultsDiv.innerHTML = createResultsHeader();
 
+    // Add progress indicator
+    const progressDiv = document.createElement('div');
+    progressDiv.id = 'actionProgress';
+    progressDiv.className = 'action-progress mb-3';
+    resultsDiv.appendChild(progressDiv);
+
     // Execute each selected action
-    selectedActions.forEach(action => performGraphAction(action));
+    runningActions = new Set(selectedActions);
+    updateProgressIndicator();
+
+    selectedActions.forEach(action => performGraphAction(action, tokenId));
 }
+
 
 
 function checkAndHighlightPermissions(tokenId) {
@@ -236,36 +247,40 @@ function highlightActionButtons(permissions) {
 
 
 
-function performGraphAction(action) {
-    const tokenId = document.getElementById('tokenSelect').value;
-    if (!tokenId) {
-        alert("Please select an access token first.");
-        return;
-    }
+function performGraphAction(action, tokenId) {
+    // Create a placeholder for the action
+    const resultsDiv = document.getElementById('results');
+    const placeholderSection = createResultSection(action, { status: 'pending' }, tokenId, action);
+    resultsDiv.appendChild(placeholderSection);
 
     fetch(`/graph_action/${action}/${tokenId}`)
         .then(response => response.json())
         .then(data => {
-            const resultsDiv = document.getElementById('results');
-            if (resultsDiv) {
-                const resultSection = createResultSection(action, data, tokenId, action);
-                resultsDiv.appendChild(resultSection);
-                sortResults();
-            } else {
-                console.error('Results div not found');
-            }
+            const resultSection = createResultSection(action, data, tokenId, action);
+            resultsDiv.replaceChild(resultSection, placeholderSection);
         })
         .catch(error => {
             console.error('Error:', error);
-            const resultsDiv = document.getElementById('results');
-            if (resultsDiv) {
-                const errorSection = createResultSection(action, { error: error.message, status: 'Error' }, tokenId, action);
-                resultsDiv.appendChild(errorSection);
+            const errorSection = createResultSection(action, { error: error.message, status: 'Error' }, tokenId, action);
+            resultsDiv.replaceChild(errorSection, placeholderSection);
+        })
+        .finally(() => {
+            runningActions.delete(action);
+            updateProgressIndicator();
+            if (runningActions.size === 0) {
                 sortResults();
-            } else {
-                console.error('Results div not found');
             }
         });
+}
+
+// Add this new function to update the progress indicator
+function updateProgressIndicator() {
+    const progressDiv = document.getElementById('actionProgress');
+    if (runningActions.size > 0) {
+        progressDiv.innerHTML = `<p>⏳ Actions in progress: ${Array.from(runningActions).join(', ')}</p>`;
+    } else {
+        progressDiv.innerHTML = '';
+    }
 }
 
 
@@ -274,56 +289,75 @@ function createResultSection(action, data, objectId, displayName) {
     resultSection.id = `result-${objectId}-${action}`;
     resultSection.className = 'result-item';
 
-    let icon, statusClass, status, content;
-    if (data.error) {
+    let icon, statusClass, status, content, emoji;
+    if (data.status === 'pending') {
+        icon = 'bi-hourglass-split';
+        statusClass = 'status-pending';
+        status = 'pending';
+        content = 'Action in progress...';
+        emoji = '⏳';
+    } else if (data.error) {
         icon = 'bi-x-octagon-fill';
-        statusClass = 'text-danger';
+        statusClass = 'status-error';
         status = 'error';
         content = `Error: ${data.error} (Status: ${data.status})`;
+        emoji = '❌';
     } else if (data.value && Array.isArray(data.value) && data.value.length === 0) {
         icon = 'bi-circle';
-        statusClass = 'text-secondary';
+        statusClass = 'status-empty';
         status = 'empty';
         content = 'No data available';
+        emoji = '⚪';
     } else if (data === undefined || (Array.isArray(data) && data.length === 0)) {
         icon = 'bi-circle';
-        statusClass = 'text-secondary';
+        statusClass = 'status-empty';
         status = 'empty';
         content = 'No data available';
+        emoji = '⚪';
     } else {
         icon = 'bi-check-circle-fill';
-        statusClass = 'text-success';
+        statusClass = 'status-success';
         status = 'success';
         content = JSON.stringify(data, null, 2);
+        emoji = '✅';
     }
 
+    const hasData = status === 'success';
+
+
     resultSection.innerHTML = `
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center" id="heading-${objectId}-${action}">
-                <h5 class="mb-0 d-flex align-items-center">
-                    <i class="bi ${icon} ${statusClass} me-2"></i>
-                    <button class="btn btn-link ${statusClass}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${objectId}-${action}" aria-expanded="true" aria-controls="collapse-${objectId}-${action}">
-                        ${displayName}
-                    </button>
-                </h5>
-                <div class="action-buttons">
-                    <button class="btn btn-sm btn-outline-primary json-btn">JSON</button>
-                    <button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button>
-                </div>
+        <div class="result-header">
+            <div class="status-indicator">
+                <i class="bi ${icon} ${statusClass}"></i>
             </div>
-            <div id="collapse-${objectId}-${action}" class="collapse" aria-labelledby="heading-${objectId}-${action}">
-                <div class="card-body">
-                    <pre><code>${content}</code></pre>
-                </div>
+            <div class="result-title">
+                <span class="emoji-indicator">${emoji}</span>
+                <button class="btn btn-link" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${objectId}-${action}" aria-expanded="false" aria-controls="collapse-${objectId}-${action}">
+                    ${displayName}
+                </button>
+            </div>
+            ${hasData ? `
+            <div class="action-buttons">
+                <button class="btn btn-sm btn-outline-primary json-btn">JSON</button>
+                <button class="btn btn-sm btn-outline-secondary copy-btn">Copy</button>
+            </div>
+            ` : ''}
+        </div>
+        <div id="collapse-${objectId}-${action}" class="collapse" aria-labelledby="heading-${objectId}-${action}">
+            <div class="card-body">
+                <pre><code>${content}</code></pre>
             </div>
         </div>
     `;
 
-    resultSection.querySelector('.copy-btn').addEventListener('click', () => copyToClipboard(content));
-    resultSection.querySelector('.json-btn').addEventListener('click', () => downloadJSON(data, `${action}_data.json`));
+    if (hasData) {
+        resultSection.querySelector('.copy-btn').addEventListener('click', () => copyToClipboard(content));
+        resultSection.querySelector('.json-btn').addEventListener('click', () => downloadJSON(data, `${action}_data.json`));
+    }
 
     return resultSection;
 }
+
 
 
 function downloadJSON(data, filename) {
@@ -362,8 +396,10 @@ function sortResults() {
     const resultsDivs = Array.from(document.getElementById('results').children).filter(child => child.classList.contains('result-item'));
 
     resultsDivs.sort((a, b) => {
-        const statusA = a.dataset.status || '';
-        const statusB = b.dataset.status || '';
+        const statusA = a.querySelector('.status-indicator i').classList.contains('status-success') ? 'success' :
+                        a.querySelector('.status-indicator i').classList.contains('status-empty') ? 'empty' : 'error';
+        const statusB = b.querySelector('.status-indicator i').classList.contains('status-success') ? 'success' :
+                        b.querySelector('.status-indicator i').classList.contains('status-empty') ? 'empty' : 'error';
         return sortOrder.indexOf(statusA) - sortOrder.indexOf(statusB);
     });
 
