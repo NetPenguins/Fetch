@@ -1,4 +1,3 @@
-// Use strict mode for better error catching and performance
 'use strict';
 
 document.addEventListener('DOMContentLoaded', initializeApp);
@@ -8,9 +7,32 @@ function initializeApp() {
     initializeEventListeners();
     // updateTime();
     // setInterval(updateTime, 1000);
-    parseIdToken();
+    // parseIdToken();
     initializeTokenTableEvents();
 }
+
+function showSection(sectionId) {
+    document.querySelectorAll('.action-section').forEach(section => section.style.display = 'none');
+    const selectedSection = document.getElementById(sectionId);
+    if (selectedSection) {
+        selectedSection.style.display = 'block';
+    } else {
+        console.error(`Section with id ${sectionId} not found`);
+    }
+}
+
+function showNotification(message, type, duration = 5000) {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3`;
+    notification.style.zIndex = '1050';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), duration);
+}
+
 
 function initializeEventListeners() {
     const eventMap = {
@@ -95,14 +117,14 @@ function startCountdown() {
 // }
 
 
-const parseIdToken = () => {
-    const hash = window.location.hash.substr(1);
-    const result = Object.fromEntries(new URLSearchParams(hash));
-    if (result.id_token) {
-        console.log("ID Token:", result.id_token);
-        // Validate and store the token
-    }
-};
+// const parseIdToken = () => {
+//     const hash = window.location.hash.substr(1);
+//     const result = Object.fromEntries(new URLSearchParams(hash));
+//     if (result.id_token) {
+//         console.log("ID Token:", result.id_token);
+//         // Validate and store the token
+//     }
+// };
 
 function initializeTokenTableEvents() {
     const tokenTable = document.querySelector('.table-responsive');
@@ -126,16 +148,6 @@ function handleTokenTableClick(e) {
     if (action) action(tokenId, e);
 }
 
-const showSection = (sectionId) => {
-    document.querySelectorAll('.action-section').forEach(section => section.style.display = 'none');
-    const selectedSection = document.getElementById(sectionId);
-    if (selectedSection) {
-        selectedSection.style.display = 'block';
-    } else {
-        console.error(`Section with id ${sectionId} not found`);
-    }
-};
-
 async function copyToClipboard(text) {
     try {
         await navigator.clipboard.writeText(text);
@@ -145,19 +157,6 @@ async function copyToClipboard(text) {
         showNotification('Failed to copy to clipboard', 'error');
     }
 }
-
-const showNotification = (message, type, duration = 5000) => {
-    const notification = document.createElement('div');
-    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3`;
-    notification.style.zIndex = '1050';
-    notification.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    `;
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), duration);
-};
-
 
 async function fetchPostRequest(url, data) {
     try {
@@ -442,12 +441,22 @@ function startDeviceCodeAuth(clientId, tenant, scope) {
     });
 }
 
-function pollForToken(clientId, deviceCode, tenant, interval) {
+function pollForToken(clientId, deviceCode, tenant, interval, maxDuration) {
+    isPollingCancelled = false; // Reset at the start of polling
+    let pollInterval;
+
+    const startTime = Date.now();
+
     pollInterval = setInterval(() => {
-        if (isPollingCancelled) {
+        if (isPollingCancelled || (Date.now() - startTime) > maxDuration * 1000) {
             clearInterval(pollInterval);
+            if (!isPollingCancelled) {
+                showNotification('Device code flow timed out', 'error');
+                resetDeviceCodeUI();
+            }
             return;
         }
+
         fetchPostRequest('/poll_for_token', { client_id: clientId, device_code: deviceCode, tenant })
         .then(data => {
             if (data.status === 'success') {
@@ -459,7 +468,7 @@ function pollForToken(clientId, deviceCode, tenant, interval) {
                 }
                 resetDeviceCodeUI();
                 refreshTokenTable();
-                closeDeviceCodeModal(); // New function to close the modal
+                closeDeviceCodeModal();
             } else if (data.status === 'pending') {
                 console.log(data.message); // Optional: update UI to show waiting message
             } else if (data.status === 'error') {
@@ -476,6 +485,7 @@ function pollForToken(clientId, deviceCode, tenant, interval) {
         });
     }, interval * 1000);
 }
+
 
 
 function resetDeviceCodeUI() {
@@ -499,13 +509,10 @@ function closeDeviceCodeModal() {
 
 function cancelDeviceCodeAuth() {
     isPollingCancelled = true;
-    if (pollInterval) {
-        clearInterval(pollInterval);
-        pollInterval = null;
-    }
     resetDeviceCodeUI();
-    console.log('Device code auth cancelled');
+    showNotification('Device code authentication cancelled', 'info');
 }
+
 
 function handleRequestTokenPassword(e) {
     e.preventDefault();
@@ -636,7 +643,7 @@ function handleImplicitGrantAuth(e) {
 
 document.addEventListener('DOMContentLoaded', function() {
     initializeEventListeners();
-    parseIdToken();
+// parseIdToken();
     initializeTokenTableEvents();
 });
 
@@ -681,12 +688,12 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('passwordClientId')?.addEventListener('change', () => toggleCustomClientId(this, 'customClientIdGroup3'));
     document.getElementById('copyFullTokenBtn').addEventListener('click', copyFullDecodedToken);
 
-    document.querySelectorAll('[data-section]').forEach(el => {
-        el.addEventListener('click', function(e) {
-            e.preventDefault();
-            showSection(this.dataset.section);
-        });
-    });
+//    document.querySelectorAll('[data-section]').forEach(el => {
+//        el.addEventListener('click', function(e) {
+//            e.preventDefault();
+//            showSection(this.dataset.section);
+//        });
+//    });
 
     document.querySelectorAll('.copy-token-btn').forEach(btn => {
         btn.addEventListener('click', function() {
