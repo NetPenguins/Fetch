@@ -660,18 +660,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('insertTokenForm')?.addEventListener('submit', handleInsertToken);
     document.getElementById('passwordAuthForm')?.addEventListener('submit', handleRequestTokenPassword);
     document.getElementById('clientSecretAuthForm')?.addEventListener('submit', handleRequestTokenSecret);
-
-    setElementValue('implicitGrantClientId', '');
-    setElementValue('implicitGrantTenantId', 'common');
-    setElementValue('implicitGrantRedirectUri', 'http://localhost:5000/auth');
-    setElementValue('implicitGrantScope', 'openid profile email');
-    setElementValue('implicitGrantResponseType', 'id_token token');
-    setElementValue('implicitGrantState', generateRandomString());
-    setElementValue('implicitGrantNonce', generateRandomString());
-
-
     document.getElementById('implicitGrantAuthForm')?.addEventListener('submit', handleImplicitGrantAuth);
-
 
     const implicitGrantAuthModal = document.getElementById('implicitGrantAuthModal');
     implicitGrantAuthModal?.addEventListener('show.bs.modal', function (event) {
