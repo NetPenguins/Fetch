@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}ARM Resource Enumerator{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">ARM Resource Enumerator</h1>
+
+    <div class="mb-4">
+        <select id="tokenSelect" class="form-select">
+            <option value="">Select Access Token</option>
+            {% for token in access_tokens %}
+            <option value="{{ token.id }}">{{ token.id }} - {{ token.email }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div id="tokenScp" class="mb-4 p-3" style="display: none;">
+        <div id="tokenExpirationWarning"></div>
+        <h5>Token Permissions:</h5>
+        <pre id="tokenScpContent" class="mb-0"></pre>
+    </div>
+
+    <div class="mb-4">
+        <h4 class="mb-3">Select Endpoints to Enumerate:</h4>
+        <div class="mb-3">
+            <button id="selectAllBtn" class="btn btn-primary me-2">Select All</button>
+            <button id="deselectAllBtn" class="btn btn-secondary me-2">Deselect All</button>
+            <button id="enumerateBtn" class="btn btn-success">Enumerate</button>
+        </div>
+        <div id="endpointsList"></div>
+    </div>
+
+    <div id="results" class="mt-4"></div>
+
+    <script id="arm-endpoints-data" type="application/json">
+        {{ arm_endpoints | tojson | safe }}
+    </script>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/arm_enumerator.js') }}"></script>
+{% endblock %}
