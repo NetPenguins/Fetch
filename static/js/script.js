@@ -6,8 +6,8 @@ document.addEventListener('DOMContentLoaded', initializeApp);
 function initializeApp() {
     startCountdown();
     initializeEventListeners();
-    updateTime();
-    setInterval(updateTime, 1000);
+    // updateTime();
+    // setInterval(updateTime, 1000);
     parseIdToken();
     initializeTokenTableEvents();
 }
@@ -85,9 +85,15 @@ function startCountdown() {
 
 
 // Simplified updateTime function
-function updateTime() {
-    document.getElementById('currentTime').textContent = new Date().toUTCString();
-}
+// function updateTime() {
+//     const currentTimeElement = document.getElementById('currentTime');
+//     if (currentTimeElement) {
+//         currentTimeElement.textContent = new Date().toUTCString();
+//     } else {
+//         console.warn('Element with id "currentTime" not found. Unable to update time.');
+//     }
+// }
+
 
 const parseIdToken = () => {
     const hash = window.location.hash.substr(1);
@@ -630,11 +636,11 @@ function handleImplicitGrantAuth(e) {
 
 document.addEventListener('DOMContentLoaded', function() {
     initializeEventListeners();
-    updateTime();
-    setInterval(updateTime, 1000);
     parseIdToken();
     initializeTokenTableEvents();
 });
+
+
 
     function initializeEventListeners() {
         function generateRandomString() {
@@ -774,10 +780,10 @@ async function refreshTokenTable() {
         } else {
             throw new Error('New table content not found in response');
         }
-        const newCurrentTime = doc.getElementById('currentTime');
-        if (newCurrentTime) {
-            document.getElementById('currentTime').textContent = newCurrentTime.textContent;
-        }
+        // const newCurrentTime = doc.getElementById('currentTime');
+        // if (newCurrentTime) {
+        //    document.getElementById('currentTime').textContent = newCurrentTime.textContent;
+        // }
     } catch (error) {
         console.error('Error refreshing token table:', error);
         showNotification('Failed to refresh token table', 'error');
