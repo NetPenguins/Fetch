@@ -1,28 +1,5 @@
 /* db_analyzer.css */
 
-:root {
-    --bg-color: #ffffff;
-    --text-color: #333333;
-    --border-color: #dee2e6;
-    --button-outline-color: black;
-}
-
-@media (prefers-color-scheme: dark) {
-    :root {
-        --bg-color: #333333;
-        --text-color: #ffffff;
-        --border-color: #555555;
-        --button-outline-color: white;
-    }
-}
-
-body {
-    font-family: Arial, sans-serif;
-    line-height: 1.6;
-    color: var(--text-color);
-    background-color: var(--bg-color);
-}
-
 .container {
     max-width: 1200px;
     margin: 0 auto;

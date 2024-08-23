@@ -1,20 +1,31 @@
 /* index.css */
+/* styles.css */
+
+
 
 .table-responsive {
+    background-color: var(--input-background);
+    color: var(--input-text-color);
     margin-top: 20px;
 }
 
 .badge {
+    background-color: var(--input-background);
+    color: var(--input-text-color);
     font-size: 0.8rem;
 }
 
 #tokenDetailsModal .modal-body pre {
+    background-color: var(--input-background);
+    color: var(--input-text-color);
     max-height: 300px;
     overflow-y: auto;
 }
 
 /* Token action buttons */
 .token-action-btn {
+    background-color: var(--input-background);
+    color: var(--input-text-color);
     margin-right: 5px;
     margin-bottom: 5px;
 }

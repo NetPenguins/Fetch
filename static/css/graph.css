@@ -33,14 +33,15 @@
 .category-wrapper {
     break-inside: avoid-column;
     margin-bottom: 10px;
-    background-color: #f8f9fa;
-    border: 1px solid #dee2e6;
+    background-color: var(--input-background);
+    color: var(--input-text-color);
     border-radius: 4px;
     overflow: hidden;
 }
 
 .category-header {
-    background-color: #e9ecef;
+    background-color: var(--input-background);
+    color: var(--input-text-color);
     padding: 8px 10px;
     cursor: pointer;
     font-weight: bold;

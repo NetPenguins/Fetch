@@ -7,52 +7,21 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
     <title></title>
     {% block extra_css %}{% endblock %}
-    <style>
-        body.dark-mode {
-            background-color: #333;
-            color: #f8f9fa;
-        }
-
-        .dark-mode .navbar {
-            background-color: #222 !important;
-        }
-
-        .dark-mode .card, .dark-mode .modal-content {
-            background-color: #444;
-            color: #f8f9fa;
-        }
-
-        .dark-mode .table {
-            color: #f8f9fa;
-        }
-
-        .dark-mode .form-control, .dark-mode .form-select {
-            background-color: #555;
-            color: #f8f9fa;
-            border-color: #666;
-        }
-
-        .dark-mode .dropdown-menu {
-            background-color: #444;
-        }
-
-        .dark-mode .dropdown-item {
-            color: #f8f9fa;
-        }
-
-        .dark-mode .dropdown-item:hover {
-            background-color: #555;
-        }
-    </style>
 </head>
 <body>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const theme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-        document.documentElement.setAttribute('data-theme', theme);
+        const savedTheme = localStorage.getItem('data-theme');
+        const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        console.log(savedTheme)
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        } else {
+            document.documentElement.setAttribute('data-theme', prefersDarkScheme ? 'dark' : 'light');
+            localStorage.setItem('data-item', prefersDarkScheme ? 'dark' : 'light');
+        }
     });
 </script>
-
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
     <div class="container-fluid">
         <a class="navbar-brand fw-bold" href="/">
@@ -108,7 +77,20 @@
                     </ul>
                 </li>
             </ul>
-            <button id="darkModeToggle" class="btn btn-outline-light me-2">Toggle Dark Mode</button>
+            
+            <button id="darkModeToggle" class="btn btn-outline-light me-2">
+                <div class="icon-container">
+                    <!-- SVG for light mode -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-brightness-high-fill svg-light-mode" viewBox="0 0 16 16">
+                        <path d="M12 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0M8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0m0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13m8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5M3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8m10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0m-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707M4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708"/>
+                    </svg>
+            
+                    <!-- SVG for dark mode -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-moon-fill svg-dark-mode" viewBox="0 0 16 16">
+                        <path d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278"/>
+                    </svg>
+                </div>
+            </button>
         </div>
     </div>
 </nav>
@@ -420,25 +402,14 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 <script>
-    const theme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    const theme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches && 'dark');
     document.documentElement.setAttribute('data-theme', theme);
-
     // Dark mode toggle functionality
-    const darkModeToggle = document.getElementById('darkModeToggle');
-    const body = document.body;
-
-    // Check for saved dark mode preference
-    if (localStorage.getItem('darkMode') === 'enabled') {
-        body.classList.add('dark-mode');
-    }
-
-    darkModeToggle.addEventListener('click', () => {
-        body.classList.toggle('dark-mode');
-        if (body.classList.contains('dark-mode')) {
-            localStorage.setItem('darkMode', 'enabled');
-        } else {
-            localStorage.setItem('darkMode', null);
-        }
+    document.getElementById('darkModeToggle').addEventListener('click', () => {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('data-theme', newTheme);
     });
 
 </script>
