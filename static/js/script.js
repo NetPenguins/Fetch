@@ -4,12 +4,12 @@
 document.addEventListener('DOMContentLoaded', initializeApp);
 
 function initializeApp() {
+    startCountdown();
     initializeEventListeners();
     updateTime();
     setInterval(updateTime, 1000);
     parseIdToken();
     initializeTokenTableEvents();
-    startCountdown();
 }
 
 function initializeEventListeners() {
@@ -170,28 +170,41 @@ async function fetchPostRequest(url, data) {
 async function handleInsertToken(e) {
     e.preventDefault();
     const token = document.getElementById('token').value;
+    const tokenType = document.getElementById('tokenType').value;
     try {
         const response = await fetch('/insert_token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({ token })
+            body: new URLSearchParams({ token, token_type: tokenType })
         });
-        const data = await response.json();
 
-        if (response.ok) {
-            showNotification('Token inserted successfully', 'success');
-            document.getElementById('token').value = '';
-            await refreshTokenTable();
-            bootstrap.Modal.getInstance(document.getElementById('insertTokenModal'))?.hide();
-        } else if (data.error === "Token already exists") {
-            showDuplicateTokenNotification(data.tokenDetails);
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.indexOf("application/json") !== -1) {
+            const data = await response.json();
+            if (response.ok) {
+                showNotification('Token inserted successfully', 'success');
+                document.getElementById('token').value = '';
+                await refreshTokenTable();
+                bootstrap.Modal.getInstance(document.getElementById('insertTokenModal'))?.hide();
+            } else if (data.error === "Token already exists") {
+                showDuplicateTokenNotification(data.tokenDetails);
+            } else {
+                throw new Error(data.error || 'An unknown error occurred');
+            }
         } else {
-            throw new Error(data.error || 'An unknown error occurred');
+            // If the response is not JSON, it's likely an HTML error page
+            const text = await response.text();
+            console.error('Received non-JSON response:', text);
+            throw new Error('Received an unexpected response from the server. Please try again or contact support.');
         }
     } catch (error) {
+        console.error('Error inserting token:', error);
         showNotification('Failed to insert token: ' + error.message, 'error');
     }
 }
+
+
+
 
 function showDuplicateTokenNotification(tokenDetails) {
     const modalContent = `
