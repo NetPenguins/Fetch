@@ -51,6 +51,10 @@
                        href="{{ url_for('object_analyzer') }}">Object Analyzer</a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'arm_enumerator' %}active{% endif %}"
+                       href="{{ url_for('arm_enumerator') }}">ARM Enumerator</a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link {% if request.endpoint == 'guides' %}active{% endif %}"
                        href="{{ url_for('guides') }}">Guides</a>
                 </li>

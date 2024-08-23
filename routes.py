@@ -9,11 +9,12 @@ import json
 from app import app
 from config import Config
 from static.endpoints.graph_endpoints import GRAPH_ENDPOINTS
-from object_endpoints import OBJECT_ENDPOINTS
+from static.endpoints.object_endpoints import OBJECT_ENDPOINTS
 from static.endpoints.microsoft_service_principals import microsoft_service_principals
+from static.endpoints.arm_endpoints import ARM_ENDPOINTS
+
 from models import get_db_connection
-from utils import determine_token_type, insert_token, generate_new_tokens, \
-    aware_utcnow, aware_utcfromtimestamp, get_all_pages
+from utils import determine_token_type, insert_token, aware_utcnow, aware_utcfromtimestamp, get_all_pages
 
 
 @app.route('/')
@@ -95,12 +96,86 @@ def guides():
     current_time = aware_utcnow()
     return render_template('guides.html', current_time=current_time)
 
+@app.route('/arm_enumerator')
+def arm_enumerator():
+    conn = get_db_connection()
+    access_tokens = conn.execute(
+        'SELECT id, oid, audience, email FROM tokens WHERE token_type = "access_token" AND audience = "https://management.azure.com"').fetchall()
+    conn.close()
+    return render_template('arm_enumerator.html',
+                           access_tokens=access_tokens,
+                           arm_endpoints=ARM_ENDPOINTS)
+
+
+@app.route('/enumerate_arm', methods=['POST'])
+def enumerate_arm():
+    token_id = request.form.get('token_id')
+    endpoint = request.form.get('endpoints')
+
+    conn = get_db_connection()
+    token = conn.execute('SELECT token FROM tokens WHERE id = ? AND token_type = "access_token"',
+                         (token_id,)).fetchone()
+    conn.close()
+
+    if not token:
+        return jsonify({"error": "Token not found"}), 404
+
+    access_token = token['token']
+    results = {}
+
+    def fetch_endpoint(endpoint_data, params=None):
+        url = f"https://management.azure.com{endpoint_data['path']}"
+        url += f"?api-version={endpoint_data['api-version']}"
+
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+
+        if params:
+            for key, value in params.items():
+                url = url.replace(f"{{{key}}}", value)
+
+        try:
+            response = requests.request(endpoint_data['method'], url, headers=headers)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            return {
+                "error": f"Failed to fetch data: {str(e)}",
+                "status_code": e.response.status_code if e.response else None,
+                "response_text": e.response.text if e.response else None
+            }
+
+    def process_endpoint(endpoint_name, params=None):
+        endpoint_data = ARM_ENDPOINTS.get(endpoint_name)
+        if not endpoint_data:
+            return {"error": "Invalid endpoint"}
+
+        if 'depends_on' in endpoint_data:
+            parent_data = process_endpoint(endpoint_data['depends_on'])
+            if 'error' in parent_data:
+                return parent_data
+            results[endpoint_data['depends_on']] = parent_data
+
+            if 'parameter' in endpoint_data:
+                if isinstance(parent_data, dict) and 'value' in parent_data:
+                    return [fetch_endpoint(endpoint_data, {endpoint_data['parameter']: item['id']})
+                            for item in parent_data['value']]
+                else:
+                    return {"error": "Invalid parent data structure"}
+
+        return fetch_endpoint(endpoint_data, params)
+
+    results[endpoint] = process_endpoint(endpoint)
+    return jsonify(results)
+
 
 @app.route('/graph_enumerator')
 def graph_enumerator():
     conn = get_db_connection()
     access_tokens = conn.execute(
-        'SELECT id, oid, audience, email FROM tokens WHERE token_type = "access_token"').fetchall()
+        'SELECT id, oid, audience, email FROM tokens WHERE token_type = "access_token" AND audience = "https://graph.microsoft.com"').fetchall()
     conn.close()
     current_time = aware_utcnow()
     return render_template('graph_enumerator.html',
@@ -389,7 +464,7 @@ def get_token_permissions(token_id):
 def db_analyzer():
     conn = get_db_connection()
     access_tokens = conn.execute(
-        'SELECT id, oid, audience, email FROM tokens WHERE token_type = "access_token"').fetchall()
+        'SELECT id, oid, audience, email FROM tokens WHERE token_type = "access_token" AND audience = "https://graph.microsoft.com"').fetchall()
     conn.close()
     current_time = aware_utcnow()
     return render_template('db_analyzer.html',
@@ -815,7 +890,7 @@ def format_datetime(value, format='%Y-%m-%d %H:%M:%S UTC'):
 def object_analyzer():
     conn = get_db_connection()
     access_tokens = conn.execute(
-        'SELECT id, oid, audience, email FROM tokens WHERE token_type = "access_token"').fetchall()
+        'SELECT id, oid, audience, email FROM tokens WHERE token_type = "access_token" AND audience = "https://graph.microsoft.com"').fetchall()
     conn.close()
     current_time = aware_utcnow()
 
