@@ -122,14 +122,6 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label for="tenantId" class="form-label">Tenant ID</label>
-                        <input type="text" class="form-control" id="tenantId" name="tenantId">
-                    </div>
-                    <div class="mb-3">
-                        <label for="user" class="form-label">User</label>
-                        <input type="text" class="form-control" id="user" name="user">
-                    </div>
-                    <div class="mb-3">
                         <label for="source" class="form-label">Source</label>
                         <input type="text" class="form-control" id="source" name="source" value="Manual Insertion">
                     </div>
@@ -370,16 +362,24 @@
                 <form id="implicitGrantAuthForm">
                     <div class="mb-3">
                         <label for="implicitGrantClientId" class="form-label">Client ID</label>
-                        <input type="text" class="form-control" id="implicitGrantClientId" name="clientId" required>
+                        <input type="text" class="form-control" id="implicitGrantClientId" name="clientId" value="" required>
                     </div>
                     <div class="mb-3">
                         <label for="implicitGrantTenantId" class="form-label">Tenant ID</label>
-                        <input type="text" class="form-control" id="implicitGrantTenantId" name="tenantId" required>
+                        <input type="text" class="form-control" id="implicitGrantTenantId" name="tenantId" value="common" required>
                     </div>
                     <div class="mb-3">
                         <label for="implicitGrantRedirectUri" class="form-label">Redirect URI</label>
                         <input type="text" class="form-control" id="implicitGrantRedirectUri" name="redirectUri"
-                               required>
+                               value="http://localhost:5000/auth" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="implicitGrantScope" class="form-label">Scope</label>
+                        <input type="text" class="form-control" id="implicitGrantScope" name="scope" value="openid profile email">
+                    </div>
+                    <div class="mb-3">
+                        <label for="implicitGrantResponseType" class="form-label">Response Type</label>
+                        <input type="text" class="form-control" id="implicitGrantResponseType" name="responseType" value="id_token token">
                     </div>
                     <div class="mb-3">
                         <label for="implicitGrantState" class="form-label">State</label>

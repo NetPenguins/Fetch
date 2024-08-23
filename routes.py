@@ -8,9 +8,9 @@ import json
 
 from app import app
 from config import Config
-from graph_endpoints import GRAPH_ENDPOINTS
+from static.endpoints.graph_endpoints import GRAPH_ENDPOINTS
 from object_endpoints import OBJECT_ENDPOINTS
-from microsoft_service_principals import microsoft_service_principals
+from static.endpoints.microsoft_service_principals import microsoft_service_principals
 from models import get_db_connection
 from utils import determine_token_type, insert_token, generate_new_tokens, \
     aware_utcnow, aware_utcfromtimestamp, get_all_pages
