@@ -28,7 +28,7 @@ def init_db():
             conn.execute('CREATE INDEX IF NOT EXISTS idx_expiration ON tokens (expiration)')
 
             # Create tables for storing Graph API results
-            from graph_endpoints import GRAPH_ENDPOINTS
+            from static.endpoints.graph_endpoints import GRAPH_ENDPOINTS
             for endpoint in GRAPH_ENDPOINTS.keys():
                 conn.execute(f'''CREATE TABLE IF NOT EXISTS {endpoint}_results
                                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
